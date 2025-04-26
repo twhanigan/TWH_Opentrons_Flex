@@ -250,7 +250,6 @@ def run(protocol: protocol_api.ProtocolContext):
     #Move partial_50 tips to A2
     protocol.move_labware(labware=partial_50, new_location="A2", use_gripper=True)
     
-
     #Configure the p1000 and p50 pipettes to use single tip NOTE: this resets the pipettes tip racks!
     p1000_multi.configure_nozzle_layout(style=SINGLE, start="A1",tip_racks=[tips_1000])
     p50_multi.configure_nozzle_layout(style=SINGLE, start="A1", tip_racks=[partial_50]) #, 
@@ -263,13 +262,11 @@ def run(protocol: protocol_api.ProtocolContext):
     # Define the directory path
     directory = Path("/var/lib/jupyter/notebooks/TWH/")
 
-    # Get today's date in YYMMDD format
+    # Get today's date in YYMMDD format and find input file for analysis using subprocess
     today_date = datetime.date.today().strftime("%y%m%d")
-
     find_file = subprocess.Popen(['python3',"/var/lib/jupyter/notebooks/wait_for_file.py"],stdout=subprocess.PIPE,
         text=True)
     stdout, stderr = find_file.communicate()
-
     if stderr:
         raise ValueError(f"Error while waiting for file: {stderr}")
 
@@ -278,8 +275,8 @@ def run(protocol: protocol_api.ProtocolContext):
     file_path = 'C:\\Users\\thanigan\\AppData\\Roaming\\Opentrons\\protocols\\a173b9a2-23ac-4b75-8410-4a2094387629\\src\\TWH_Plate_250421.xlsx'
     if not file_path:
         raise ValueError("No file path returned by wait_for_file.py")
-
     protocol.comment(f"Successfully loaded: {file_path}")
+
     # Read the data file
     df = pd.read_excel(file_path, header=5, nrows=8, usecols="C:N")
 
@@ -316,28 +313,28 @@ def run(protocol: protocol_api.ProtocolContext):
     samples_1_to_8['Mean Absorbance'] = samples_1_to_8[['Replicate 1', 'Replicate 2', 'Replicate 3']].mean(axis=1)
     protein_concentrations = [10, 5, 2.5, 1.25, 0.625, 0.3125, 0.15625, 0]
     samples_1_to_8['Protein Concentration (mg/mL)'] = protein_concentrations
-
     slope, intercept = np.polyfit(samples_1_to_8['Protein Concentration (mg/mL)'], samples_1_to_8['Mean Absorbance'], 1)
     y_pred = slope * samples_1_to_8['Protein Concentration (mg/mL)'] + intercept
     ss_res = np.sum((samples_1_to_8['Mean Absorbance'] - y_pred) ** 2)
     ss_tot = np.sum((samples_1_to_8['Mean Absorbance'] - np.mean(samples_1_to_8['Mean Absorbance'])) ** 2)
     r_squared = 1 - (ss_res / ss_tot)
-
     unknown_samples = final_df.iloc[8:8 + num_samples]
     unknown_samples['Mean Absorbance'] = unknown_samples[['Replicate 1', 'Replicate 2', 'Replicate 3']].mean(axis=1)
     unknown_samples['Protein Concentration (mg/mL)'] = (unknown_samples['Mean Absorbance'] - intercept) / slope
-
-
     unknown_samples['Sample Volume (mL)'] = (target_concentration * final_volume) / unknown_samples['Protein Concentration (mg/mL)']
     unknown_samples['Diluent Volume (mL)'] = final_volume - unknown_samples['Sample Volume (mL)']
     unknown_samples.loc[unknown_samples['Sample Volume (mL)'] > final_volume, ['Sample Volume (mL)', 'Diluent Volume (mL)']] = [final_volume, 0]
-    protocol.comment("\nNormalized Unknown Samples (to 1 mg/mL in 500 µL):")
-    print(unknown_samples[['Sample', 'Protein Concentration (mg/mL)', 'Sample Volume (mL)', 'Diluent Volume (mL)']])
-
+    protocol.comment(unknown_samples[['Sample', 'Protein Concentration (mg/mL)', 'Sample Volume (mL)', 'Diluent Volume (mL)']])
     normalized_samples = unknown_samples[['Sample', 'Protein Concentration (mg/mL)', 'Sample Volume (mL)', 'Diluent Volume (mL)']].reset_index().drop(columns='index')
+    
+    #write the output to the instrument jupyter notebook directory
+    filename = "Protocol_output_{today_date}.csv"
+    output_file_destination_path = directory.joinpath(filename)
+    normalized_samples.to_csv(output_file_destination_path)
+
+    #dilute sample in lysis buffer to 1 mg/ml on deep well plate
     rows = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
     destination_wells  = [f'{rows[i % 8]}{(i // 8)+ 1}' for i in range(len(normalized_samples))]
-
     for i, row in normalized_samples.iterrows():
         source_well = sample_locations[i]
         normalized_volume = row['Sample Volume (mL)']
