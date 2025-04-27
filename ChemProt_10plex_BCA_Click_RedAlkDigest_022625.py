@@ -268,10 +268,7 @@ def run(protocol: protocol_api.ProtocolContext):
             # Fetch the file using curl via subprocess
             result = subprocess.run(["curl", "-s", file_url], capture_output=True, check=True)
             data = result.stdout
-
-            # Read the Excel file content into pandas DataFrame
             df = pd.read_excel(BytesIO(data), skiprows=5, usecols="B:N",index_col=0)
-            # Return the filename and serialized DataFrame
             return file_name, df
         except subprocess.CalledProcessError as e:
             return None, f"Failed to fetch the file: {e}"
