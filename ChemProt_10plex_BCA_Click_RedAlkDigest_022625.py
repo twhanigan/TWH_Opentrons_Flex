@@ -378,10 +378,6 @@ def run(protocol: protocol_api.ProtocolContext):
     heater_shaker.close_labware_latch()
     heater_shaker.set_and_wait_for_shake_speed(1000)
     protocol.delay(minutes=5)
-
-    # move the partial 200uL to B4 and then the partial 200 uL tips to B3
-    #protocol.move_labware(labware=partial_200, new_location="B4", use_gripper=True)
-    #protocol.move_labware(labware=tips_1000, new_location="C3", use_gripper=True)
     
     #Configure the p50 pipette to use All tips 
     p1000_multi.configure_nozzle_layout(style=ALL, tip_racks=[tips_1000])
