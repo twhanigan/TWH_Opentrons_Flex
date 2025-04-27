@@ -257,28 +257,30 @@ def run(protocol: protocol_api.ProtocolContext):
     # Load the new labware
     plate3 = protocol.load_labware('nest_96_wellplate_2ml_deep', location='C3')  #location='hs_adapter' New deep well plate for final samples
     protocol.move_labware(labware=epp_rack, new_location="B2")
-    #plate3 = protocol.load_labware('thermoscientificnunc_96_wellplate_2000ul', location='B2')  #location='hs_adapter' New deep well plate for final samples
             
-    # Define the directory path
-    directory = Path("/var/lib/jupyter/notebooks/TWH/")
-
-    # Get today's date in YYMMDD format and find input file for analysis using subprocess
+    # Construct today's date in the expected format
     today_date = datetime.date.today().strftime("%y%m%d")
-    find_file = subprocess.Popen(['python3',"/var/lib/jupyter/notebooks/wait_for_file.py"],stdout=subprocess.PIPE,
-        text=True)
-    stdout, stderr = find_file.communicate()
-    if stderr:
-        raise ValueError(f"Error while waiting for file: {stderr}")
+    file_name = f"TWH_Plate_{today_date}.xlsx"
+    file_url = f"http://172.23.226.47:48888/files/TWH/{file_name}"
 
-    # Extract the file path from the output
-    #file_path = stdout.splitlines()[1]
-    file_path = 'C:\\Users\\thanigan\\AppData\\Roaming\\Opentrons\\protocols\\a173b9a2-23ac-4b75-8410-4a2094387629\\src\\TWH_Plate_250421.xlsx'
-    if not file_path:
-        raise ValueError("No file path returned by wait_for_file.py")
-    protocol.comment(f"Successfully loaded: {file_path}")
+    def fetch_data():
+        try:
+            # Fetch the file using curl via subprocess
+            result = subprocess.run(["curl", "-s", file_url], capture_output=True, check=True)
+            data = result.stdout
 
-    # Read the data file
-    df = pd.read_excel(file_path, header=5, nrows=8, usecols="C:N")
+            # Read the Excel file content into pandas DataFrame
+            df = pd.read_excel(BytesIO(data), skiprows=5, usecols="B:N",index_col=0)
+            # Return the filename and serialized DataFrame
+            return file_name, df
+        except subprocess.CalledProcessError as e:
+            return None, f"Failed to fetch the file: {e}"
+        except Exception as ex:
+            return None, f"Error reading the Excel file: {ex}"
+
+    file_name, df = fetch_data()
+    if file_name:
+        print(file_name)
 
     # Create a list of well names (A1 to H12)
     well_names = [f"{row}{col}" for col in range(1, 13) for row in "ABCDEFGH"]
@@ -327,10 +329,19 @@ def run(protocol: protocol_api.ProtocolContext):
     protocol.comment(unknown_samples[['Sample', 'Protein Concentration (mg/mL)', 'Sample Volume (mL)', 'Diluent Volume (mL)']])
     normalized_samples = unknown_samples[['Sample', 'Protein Concentration (mg/mL)', 'Sample Volume (mL)', 'Diluent Volume (mL)']].reset_index().drop(columns='index')
     
-    #write the output to the instrument jupyter notebook directory
-    filename = "Protocol_output_{today_date}.csv"
+    #write the output and image of data plot to the instrument jupyter notebook directory
+    filename = f"Protocol_output_{today_date}.csv"
     output_file_destination_path = directory.joinpath(filename)
     normalized_samples.to_csv(output_file_destination_path)
+    plt.figure(figsize=(8, 6))
+    plt.scatter(samples_1_to_8['Protein Concentration (mg/mL)'], samples_1_to_8['Mean Absorbance'], color='blue', label='Data')
+    plt.plot(samples_1_to_8['Protein Concentration (mg/mL)'], y_pred, color='red', label=f'Linear regression (R² = {r_squared:.2f})')
+    plt.xlabel('Protein Concentration (mg/mL)')
+    plt.ylabel('Mean Absorbance')
+    plt.title('Linear Regression of Protein Concentration vs Absorbance')
+    plt.legend()
+    plot_image_path = directory.joinpath(f"linear_regression_plot_{today_date}.png")
+    plt.savefig(plot_image_path)
 
     #dilute sample in lysis buffer to 1 mg/ml on deep well plate
     rows = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
@@ -343,7 +354,6 @@ def run(protocol: protocol_api.ProtocolContext):
         p1000_multi.transfer(normalized_volume, temp_adapter[source_well], plate3[destination_well], rate=0.5, new_tip='once')
         p50_multi.transfer(diluent_volume, reservoir['A7'], plate3[destination_well], rate=0.5, new_tip='once')
 
-    
     #########################################################################################
     protocol.comment("Reducing Alkylating and Digesting")
 
