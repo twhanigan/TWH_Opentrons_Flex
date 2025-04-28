@@ -216,12 +216,16 @@ def run(protocol: protocol_api.ProtocolContext):
     # Pause the protocol until the user loads the file to /var/lib/jupyter/notebooks
     protocol.pause()
 
-    # Tell the robot that new labware will be placed onto the deck
+        # Tell the robot that new labware will be placed onto the deck
     protocol.move_labware(labware=plate1, new_location=protocol_api.OFF_DECK)
     protocol.move_labware(labware=plate2, new_location=protocol_api.OFF_DECK)
 
-    #Configure the p1000 pipette to use single tip NOTE: this resets the pipettes tip racks!
-    p1000_multi.configure_nozzle_layout(style=SINGLE, start="A1",tip_racks=[tips_1000  ])
+    #Move partial_50 tips to A2
+    protocol.move_labware(labware=partial_50, new_location="A2", use_gripper=True)
+    
+    #Configure the p1000 and p50 pipettes to use single tip NOTE: this resets the pipettes tip racks!
+    p1000_multi.configure_nozzle_layout(style=SINGLE, start="A1",tip_racks=[tips_1000])
+    p50_multi.configure_nozzle_layout(style=SINGLE, start="A1", tip_racks=[partial_50]) #, 
 
     # Load the new labware
     plate3 = protocol.load_labware('thermoscientificnunc_96_wellplate_2000ul', location='B2')  # New deep well plate for final samples
@@ -309,4 +313,4 @@ def run(protocol: protocol_api.ProtocolContext):
         diluent_volume = 500 - normalized_volume
         destination_well = destination_wells[i]
         p1000_multi.transfer(normalized_volume, temp_adapter[source_well], plate3[destination_well], rate=0.5, new_tip='once')
-        p1000_multi.transfer(diluent_volume, reservoir['A7'], plate3[destination_well], rate=0.5, new_tip='once')
+        p50_multi.transfer(diluent_volume, reservoir['A7'], plate3[destination_well], rate=0.5, new_tip='once')
