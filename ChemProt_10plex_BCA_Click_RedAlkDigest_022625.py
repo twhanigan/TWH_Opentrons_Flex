@@ -75,6 +75,7 @@ def run(protocol: protocol_api.ProtocolContext):
     SP3_Beads = protocol.define_liquid(name='Lysis Buffer', display_color="#00FF00")  # Red
     tbta = protocol.define_liquid(name='TBTA', display_color="#FF6600")  # Purple
     tcep = protocol.define_liquid(name='TCEP', display_color="#0066FF")  # Orange
+    empty_2mL = protocol.define_liquid(name='empty_2mL', display_color="#1685A4")  # SteelBlue
     IAA =  protocol.define_liquid(name='IAA', display_color="#AA00FF")  # ?
     excess_lysis = protocol.define_liquid(name='Excess Lysis Buffer', display_color="#FF0099")  # Pink
     epps_urea = protocol.define_liquid(name='2M Urea in EPPS', display_color="#00FF99")  # SaddleBrown
