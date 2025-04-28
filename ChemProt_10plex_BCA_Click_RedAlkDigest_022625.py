@@ -72,7 +72,7 @@ def run(protocol: protocol_api.ProtocolContext):
     bsa_reag_a = protocol.define_liquid(name = 'Reagent A', display_color="#00FFFF")
     bsa_reag_b = protocol.define_liquid(name = 'Reagent B', display_color="#FFFF00")
     bsa_reag_c = protocol.define_liquid(name = 'Reagent C', display_color="#FF3300")
-    SP3_Beads = protocol.define_liquid(name='Lysis Buffer', display_color="#00FF00")  # Red
+    SP3_Beads = protocol.define_liquid(name='SP3 Beads', display_color="#00FF00")  # Red
     tbta = protocol.define_liquid(name='TBTA', display_color="#FF6600")  # Purple
     tcep = protocol.define_liquid(name='TCEP', display_color="#0066FF")  # Orange
     empty_2mL = protocol.define_liquid(name='empty_2mL', display_color="#1685A4")  # SteelBlue
@@ -100,10 +100,10 @@ def run(protocol: protocol_api.ProtocolContext):
     reservoir['A12'].load_liquid(liquid=epps_urea, volume=20000)  # 2M Urea in EPPS
 
     # Trypsin and CaCl2 for digestion
-    temp_adapter['A1'].load_liquid(liquid=bsa_standard, volume=10000)  # Additional lysis buffer for SP3
-    temp_adapter['A2'].load_liquid(liquid=SP3_Beads, volume=10000)  # Additional lysis buffer for SP3
+    temp_adapter['A1'].load_liquid(liquid=bsa_standard, volume=1000)  # 20 mg/ml BSA standard
+    temp_adapter['A2'].load_liquid(liquid=SP3_Beads, volume=1000)  # Additional lysis buffer for SP3
     temp_adapter['D5'].load_liquid(liquid=cacl2, volume=500)  # CaCl2
-    temp_adapter['D6'].load_liquid(liquid=trypsin, volume=500)  # Trypsin in EPPS 
+    temp_adapter['D6'].load_liquid(liquid=trypsin, volume=2000)  # Trypsin in EPPS 
 
     # Load pipettes
     p50_multi = protocol.load_instrument('flex_8channel_50', 'left') #, tip_racks=[tips_50]
@@ -529,7 +529,7 @@ def run(protocol: protocol_api.ProtocolContext):
 
     # Add CaCl2, trypsin in epps, and move to shaker
     p1000_multi.distribute(2.5, temp_adapter['D5'], [plate3[i] for i in destination_wells], new_tip='once')
-    p1000_multi.distribute(50, temp_adapter['D6'], [plate3[i] for i in destination_wells], new_tip='once')
+    p1000_multi.distribute(150, temp_adapter['D6'], [plate3[i] for i in destination_wells], new_tip='once')
 
     #Remember the volume added to the samples
     added_vol = added_vol + 2.5 + 50
