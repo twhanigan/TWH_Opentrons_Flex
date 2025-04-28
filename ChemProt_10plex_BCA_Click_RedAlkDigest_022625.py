@@ -87,7 +87,7 @@ def run(protocol: protocol_api.ProtocolContext):
     epp_rack['C1'].load_liquid(liquid=tcep, volume=1000)  # TCEP
     epp_rack['C2'].load_liquid(liquid=tbta, volume=1000)  # TBTA
     epp_rack['C3'].load_liquid(liquid=IAA, volume=1000)  # CuSO4
-    epp_rack['C4'].load_liquid(liquid=epps_urea, volume=5000)  # 2M Urea in EPPS
+    epp_rack['C4'].load_liquid(liquid=empty_2mL, volume=0)  # Empty Epp
 
     # Reservoir assignments for washes and digestion
     reservoir['A1'].load_liquid(liquid=bsa_reag_a, volume=20000)  
@@ -359,7 +359,7 @@ def run(protocol: protocol_api.ProtocolContext):
     protocol.move_labware(labware=epp_rack, new_location='B2')
     protocol.move_labware(labware=tips_1000_2,new_location='A4')
 
-    # mix the sp3 beads to homogenize
+    # mix the sp3 beads to homogenize. For a 10-plex sample, you need atleast 600 uL of beads.
     p1000_multi.pick_up_tip()
     p1000_multi.mix(4, 200, epp_rack['B1'])
     p1000_multi.drop_tip()
