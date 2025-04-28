@@ -2,7 +2,7 @@ from opentrons import protocol_api
 from opentrons.protocol_api import SINGLE, ALL
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 import subprocess
 from pathlib import Path
 import datetime
@@ -337,15 +337,6 @@ def run(protocol: protocol_api.ProtocolContext):
         filename = f"Protocol_output_{today_date}.csv"
         output_file_destination_path = directory.joinpath(filename)
         normalized_samples.to_csv(output_file_destination_path)
-        plt.figure(figsize=(8, 6))
-        plt.scatter(samples_1_to_8['Protein Concentration (mg/mL)'], samples_1_to_8['Mean Absorbance'], color='blue', label='Data')
-        plt.plot(samples_1_to_8['Protein Concentration (mg/mL)'], y_pred, color='red', label=f'Linear regression (R² = {r_squared:.2f})')
-        plt.xlabel('Protein Concentration (mg/mL)')
-        plt.ylabel('Mean Absorbance')
-        plt.title('Linear Regression of Protein Concentration vs Absorbance')
-        plt.legend()
-        plot_image_path = directory.joinpath(f"linear_regression_plot_{today_date}.png")
-        plt.savefig(plot_image_path)
 
         # Dilute sample in lysis buffer to 1 mg/ml on deep well plate
         rows = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
