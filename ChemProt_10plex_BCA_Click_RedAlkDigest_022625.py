@@ -62,7 +62,7 @@ def run(protocol: protocol_api.ProtocolContext):
     tips_1000 = protocol.load_labware(load_name="opentrons_flex_96_filtertiprack_1000ul",location="C4")
     tips_1000_2 = protocol.load_labware(load_name="opentrons_flex_96_filtertiprack_1000ul",location=protocol_api.OFF_DECK)
     partial_1000 = protocol.load_labware(load_name="opentrons_flex_96_filtertiprack_1000ul",location="B4")
-    plate1 = protocol.load_labware('corning_96_wellplate_360ul_flat', 'A2')
+    plate1 = protocol.load_labware('opentrons_96_wellplate_200ul_pcr_full_skirt', 'A2')
     plate2 = protocol.load_labware('corning_96_wellplate_360ul_flat', 'B2')
     reservoir = protocol.load_labware('nest_12_reservoir_15ml', 'C2')
     
@@ -87,7 +87,7 @@ def run(protocol: protocol_api.ProtocolContext):
     epp_rack['C1'].load_liquid(liquid=tcep, volume=1000)  # TCEP
     epp_rack['C2'].load_liquid(liquid=tbta, volume=1000)  # TBTA
     epp_rack['C3'].load_liquid(liquid=IAA, volume=1000)  # CuSO4
-    epp_rack['C4'].load_liquid(liquid=empty_2mL, volume=0)  # Empty Epp
+    epp_rack['C4'].load_liquid(liquid=empty_2mL, volume=0)  # Empty 2 ml Epp
 
     # Reservoir assignments for washes and digestion
     reservoir['A1'].load_liquid(liquid=bsa_reag_a, volume=20000)  
