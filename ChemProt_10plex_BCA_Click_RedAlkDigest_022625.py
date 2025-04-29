@@ -131,10 +131,11 @@ def run(protocol: protocol_api.ProtocolContext):
     p50_multi.transfer(50,
         temp_adapter['A1'],
         plate1['A1'],
-        rate = 0.35,
+        rate = 0.25,
         delay = 2,
         mix_after=(3, 40),
-        new_tip='once')
+        new_tip='once',
+        blow_out=True)
 
     # Step 5: Perform serial dilution down column 1
     rows = ['A','B', 'C', 'D', 'E', 'F', 'G']
@@ -190,7 +191,7 @@ def run(protocol: protocol_api.ProtocolContext):
             5,
             temp_adapter[tube],
             [plate2[i] for i in destination_wells],
-            rate = 0.5)  # Distributing to three consecutive columns
+            rate = 0.35)  # Distributing to three consecutive columns
 
     # Step 8: move the 50uL complete tips to A3
     protocol.move_labware(labware=tips_50, new_location="A3", use_gripper=True)
@@ -209,29 +210,32 @@ def run(protocol: protocol_api.ProtocolContext):
     p1000_multi.configure_nozzle_layout(style=ALL, tip_racks=[tips_1000]) #,
 
     # Step 13: Add reagent A
-    p1000_multi.distribute(75,
+    p1000_multi.distribute(50,
                         reservoir['A1'],
                         plate2.wells(),
                         new_tip='once')
 
     # Step 14: Add reagent B
-    p1000_multi.distribute(72,
+    p1000_multi.distribute(48,
                         reservoir['A3'],
                         plate2.wells(),
                         new_tip='once')
 
     # Step 15: Add reagent c
-    p50_multi.distribute(3,
+    p50_multi.distribute(2,
                         reservoir['A5'],
                         plate2.wells(),
-                        new_tip='once')
+                        new_tip='once',
+                        rate = 0.5,
+                        mix_after=(2, 40), 
+                        blow_out=True)
 
     #Step 16: move plate 2 to the heater shaker and incubate at 37c
     heater_shaker.open_labware_latch()
     protocol.move_labware(labware=plate2, new_location=hs_adapter,use_gripper=True)
     heater_shaker.close_labware_latch()
     heater_shaker.set_and_wait_for_shake_speed(500)
-    protocol.delay(minutes=5)
+    protocol.delay(minutes=10)
 
     #Step 17 deactivate heater shaker and temp modules
     heater_shaker.deactivate_shaker()
@@ -246,14 +250,14 @@ def run(protocol: protocol_api.ProtocolContext):
     # Pause the protocol until the user loads the file to /var/lib/jupyter/notebooks
     protocol.pause()
 
-    # Tell the robot that new labware will be placed onto the deck
+    # Tell the robot that new labware will be placed onto the deck and move partial_50 tips to A2
     protocol.move_labware(labware=plate1, new_location=protocol_api.OFF_DECK)
     protocol.move_labware(labware=plate2, new_location=protocol_api.OFF_DECK)
-
-    #Move partial_50 tips to A2
     protocol.move_labware(labware=partial_50, new_location="A2", use_gripper=True)
     protocol.move_labware(labware=tips_1000, new_location="C4", use_gripper=True)
     protocol.move_labware(labware=partial_1000, new_location="B3", use_gripper=True)
+    protocol.move_labware(labware=epp_rack, new_location='B2')
+    protocol.move_labware(labware=tips_1000_2,new_location='A4')
 
     #Configure the p1000 and p50 pipettes to use single tip NOTE: this resets the pipettes tip racks!
     p1000_multi.configure_nozzle_layout(style=SINGLE, start="A1",tip_racks=[partial_1000])
@@ -262,94 +266,96 @@ def run(protocol: protocol_api.ProtocolContext):
     # Load the new labware
     plate3 = protocol.load_labware('nest_96_wellplate_2ml_deep', location='C3')  #location='hs_adapter' New deep well plate for final samples
             
-    # Construct today's date in the expected format
+    # Define the directory path
+    directory = Path("/var/lib/jupyter/notebooks/TWH/")
+
+    # Get today's date in YYMMDD format
     today_date = datetime.date.today().strftime("%y%m%d")
-    file_name = f"TWH_Plate_{today_date}.xlsx"
-    file_url = f"http://172.23.226.47:48888/files/TWH/{file_name}"
 
-    def fetch_data():
-        try:
-            # Fetch the file using curl via subprocess
-            result = subprocess.run(["curl", "-s", file_url], capture_output=True, check=True)
-            data = result.stdout
-            df = pd.read_excel(BytesIO(data), skiprows=5, usecols="B:N",index_col=0)
-            return file_name, df
-        except subprocess.CalledProcessError as e:
-            return None, f"Failed to fetch the file: {e}"
-        except Exception as ex:
-            return None, f"Error reading the Excel file: {ex}"
+    find_file = subprocess.Popen(['python3',"/var/lib/jupyter/notebooks/wait_for_file.py"],stdout=subprocess.PIPE,
+        text=True)
+    stdout, stderr = find_file.communicate()
 
-    file_name, df = fetch_data()
+    if stderr:
+        raise ValueError(f"Error while waiting for file: {stderr}")
 
-    # Check if the file was fetched and data was read
-    if file_name is None or df is None:
-        print(f"Skipping data processing due to: {df}")
-    else:
-        print(file_name)
+    # Extract the file path from the output
+    file_path = stdout.splitlines()[1]
+    if not file_path:
+        raise ValueError("No file path returned by wait_for_file.py")
 
-        # Create a list of well names (A1 to H12)
-        well_names = [f"{row}{col}" for col in range(1, 13) for row in "ABCDEFGH"]
+    protocol.comment(f"Successfully loaded: {file_path}")
+    # Read the data file
+    df = pd.read_excel(file_path, header=5, nrows=8, usecols="C:N")
 
-        # Flatten the absorbance values into a single list
-        absorbance_values = df.values.flatten()
+    # Create a list of well names (A1 to H12)
+    well_names = [f"{row}{col}" for col in range(1, 13) for row in "ABCDEFGH"]
 
-        # Create the DataFrame
-        initial_df = pd.DataFrame({'Well': well_names, 'Absorbance': absorbance_values})
+    # Flatten the absorbance values into a single list
+    absorbance_values = df.values.flatten()
 
-        # Process data for normalization
-        samples, replicate_1, replicate_2, replicate_3 = [], [], [], []
-        sample_index = 1
-        for col_offset in range(0, 12, 3):  # Iterate by column groups (triplets)
-            for row_offset in range(8):  # Iterate row-wise for each sample
-                start = row_offset * 12 + col_offset  # Starting index for the sample
-                if start + 2 < len(initial_df):
-                    samples.append(f"Sample {sample_index}")
-                    replicate_1.append(initial_df.iloc[start]['Absorbance'])
-                    replicate_2.append(initial_df.iloc[start + 1]['Absorbance'])
-                    replicate_3.append(initial_df.iloc[start + 2]['Absorbance'])
-                    sample_index += 1
+    # Create the DataFrame
+    initial_df = pd.DataFrame({'Well': well_names, 'Absorbance': absorbance_values})
 
-        final_df = pd.DataFrame({
-            'Sample': samples,
-            'Replicate 1': replicate_1,
-            'Replicate 2': replicate_2,
-            'Replicate 3': replicate_3
-        })
+    # Process data for normalization
+    samples, replicate_1, replicate_2, replicate_3 = [], [], [], []
+    sample_index = 1
+    for col_offset in range(0, 12, 3):  # Iterate by column groups (triplets)
+        for row_offset in range(8):  # Iterate row-wise for each sample
+            start = row_offset * 12 + col_offset  # Starting index for the sample
+            if start + 2 < len(initial_df):
+                samples.append(f"Sample {sample_index}")
+                replicate_1.append(initial_df.iloc[start]['Absorbance'])
+                replicate_2.append(initial_df.iloc[start + 1]['Absorbance'])
+                replicate_3.append(initial_df.iloc[start + 2]['Absorbance'])
+                sample_index += 1
 
-        samples_1_to_8 = final_df.iloc[:8]
-        samples_1_to_8['Mean Absorbance'] = samples_1_to_8[['Replicate 1', 'Replicate 2', 'Replicate 3']].mean(axis=1)
-        protein_concentrations = [10, 5, 2.5, 1.25, 0.625, 0.3125, 0.15625, 0]
-        samples_1_to_8['Protein Concentration (mg/mL)'] = protein_concentrations
-        slope, intercept = np.polyfit(samples_1_to_8['Protein Concentration (mg/mL)'], samples_1_to_8['Mean Absorbance'], 1)
-        y_pred = slope * samples_1_to_8['Protein Concentration (mg/mL)'] + intercept
-        ss_res = np.sum((samples_1_to_8['Mean Absorbance'] - y_pred) ** 2)
-        ss_tot = np.sum((samples_1_to_8['Mean Absorbance'] - np.mean(samples_1_to_8['Mean Absorbance'])) ** 2)
-        r_squared = 1 - (ss_res / ss_tot)
-        unknown_samples = final_df.iloc[8:8 + num_samples]
-        unknown_samples['Mean Absorbance'] = unknown_samples[['Replicate 1', 'Replicate 2', 'Replicate 3']].mean(axis=1)
-        unknown_samples['Protein Concentration (mg/mL)'] = (unknown_samples['Mean Absorbance'] - intercept) / slope
-        unknown_samples['Sample Volume (mL)'] = (target_concentration * final_volume) / unknown_samples['Protein Concentration (mg/mL)']
-        unknown_samples['Diluent Volume (mL)'] = final_volume - unknown_samples['Sample Volume (mL)']
-        unknown_samples.loc[unknown_samples['Sample Volume (mL)'] > final_volume, ['Sample Volume (mL)', 'Diluent Volume (mL)']] = [final_volume, 0]
-        protocol.comment(unknown_samples[['Sample', 'Protein Concentration (mg/mL)', 'Sample Volume (mL)', 'Diluent Volume (mL)']])
-        normalized_samples = unknown_samples[['Sample', 'Protein Concentration (mg/mL)', 'Sample Volume (mL)', 'Diluent Volume (mL)']].reset_index().drop(columns='index')
+    final_df = pd.DataFrame({
+        'Sample': samples,
+        'Replicate 1': replicate_1,
+        'Replicate 2': replicate_2,
+        'Replicate 3': replicate_3
+    })
 
-        # Write the output and image of data plot to the instrument jupyter notebook directory
-        filename = f"Protocol_output_{today_date}.csv"
-        output_file_destination_path = directory.joinpath(filename)
-        normalized_samples.to_csv(output_file_destination_path)
+    samples_1_to_8 = final_df.iloc[:8]
+    samples_1_to_8['Mean Absorbance'] = samples_1_to_8[['Replicate 1', 'Replicate 2', 'Replicate 3']].mean(axis=1)
+    protein_concentrations = [10, 5, 2.5, 1.25, 0.625, 0.3125, 0.15625, 0]
+    samples_1_to_8['Protein Concentration (mg/mL)'] = protein_concentrations
 
-        # Dilute sample in lysis buffer to 1 mg/ml on deep well plate
-        rows = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
-        destination_wells  = [f'{rows[i % 8]}{(i // 8)+ 1}' for i in range(len(normalized_samples))]
-        for i, row in normalized_samples.iterrows():
-            source_well = sample_locations[i]
-            normalized_volume = row['Sample Volume (mL)']
-            diluent_volume = 500 - normalized_volume
-            destination_well = destination_wells[i]
-            p1000_multi.transfer(normalized_volume, temp_adapter[source_well], plate3[destination_well], rate=0.5, new_tip='once')
-            p50_multi.transfer(diluent_volume, reservoir['A7'], plate3[destination_well], rate=0.5, new_tip='once')
+    slope, intercept = np.polyfit(samples_1_to_8['Protein Concentration (mg/mL)'], samples_1_to_8['Mean Absorbance'], 1)
+    y_pred = slope * samples_1_to_8['Protein Concentration (mg/mL)'] + intercept
+    ss_res = np.sum((samples_1_to_8['Mean Absorbance'] - y_pred) ** 2)
+    ss_tot = np.sum((samples_1_to_8['Mean Absorbance'] - np.mean(samples_1_to_8['Mean Absorbance'])) ** 2)
+    r_squared = 1 - (ss_res / ss_tot)
 
+    unknown_samples = final_df.iloc[8:8 + num_samples]
+    unknown_samples['Mean Absorbance'] = unknown_samples[['Replicate 1', 'Replicate 2', 'Replicate 3']].mean(axis=1)
+    unknown_samples['Protein Concentration (mg/mL)'] = (unknown_samples['Mean Absorbance'] - intercept) / slope
+
+
+    unknown_samples['Sample Volume (mL)'] = (target_concentration * final_volume) / unknown_samples['Protein Concentration (mg/mL)']
+    unknown_samples['Diluent Volume (mL)'] = final_volume - unknown_samples['Sample Volume (mL)']
+    unknown_samples.loc[unknown_samples['Sample Volume (mL)'] > final_volume, ['Sample Volume (mL)', 'Diluent Volume (mL)']] = [final_volume, 0]
+    protocol.comment("\nNormalized Unknown Samples (to 1 mg/mL in 500 µL):")
+    normalized_samples = unknown_samples[['Sample', 'Protein Concentration (mg/mL)', 'Sample Volume (mL)', 'Diluent Volume (mL)']].reset_index().drop(columns='index')
+    rows = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
+    destination_wells  = [f'{rows[i % 8]}{(i // 8)+ 1}' for i in range(len(normalized_samples))]
+
+    # Write the output and image of data plot to the instrument jupyter notebook directory
+    filename = f"Protocol_output_{today_date}.csv"
+    output_file_destination_path = directory.joinpath(filename)
+    normalized_samples.to_csv(output_file_destination_path)
+
+    # Dilute sample in lysis buffer to 1 mg/ml on deep well plate
+    rows = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
+    destination_wells  = [f'{rows[i % 8]}{(i // 8)+ 1}' for i in range(len(normalized_samples))]
+    for i, row in normalized_samples.iterrows():
+        source_well = sample_locations[i]
+        normalized_volume = row['Sample Volume (mL)']
+        diluent_volume = 500 - normalized_volume
+        destination_well = destination_wells[i]
+        p1000_multi.transfer(diluent_volume, reservoir['A7'], plate3[destination_well], rate=0.5, new_tip='once')
+        p50_multi.transfer(normalized_volume, temp_adapter[source_well], plate3[destination_well], rate=0.5, new_tip='once')
 
     #########################################################################################
     protocol.comment("Desalting")
@@ -357,8 +363,6 @@ def run(protocol: protocol_api.ProtocolContext):
     #trick heater_shaker into using 96-well plates
     protocol.move_labware(labware=hs_adapter, new_location=protocol_api.OFF_DECK, use_gripper=False)
     plate_adapter = heater_shaker.load_adapter('opentrons_96_deep_well_adapter')
-    protocol.move_labware(labware=epp_rack, new_location='B2')
-    protocol.move_labware(labware=tips_1000_2,new_location='A4')
 
     # mix the sp3 beads to homogenize. For a 10-plex sample, you need atleast 600 uL of beads.
     p1000_multi.pick_up_tip()
