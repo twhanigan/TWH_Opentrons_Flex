@@ -51,7 +51,7 @@ def run(protocol: protocol_api.ProtocolContext):
     epp_rack = protocol.load_labware('opentrons_24_tuberack_eppendorf_1.5ml_safelock_snapcap', location=protocol_api.OFF_DECK)
 
     #set the heater_shaker temp to 60C
-    heater_shaker.set_and_wait_for_temperature(37)
+    heater_shaker.set_and_wait_for_temperature(50)
 
     #set the temp module to 0c
     temp_module.set_temperature(celsius=10)
