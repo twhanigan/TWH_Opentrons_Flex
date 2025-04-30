@@ -193,7 +193,7 @@ def run(protocol: protocol_api.ProtocolContext):
         #Transfer the samples onto plate 2
         p50_multi.distribute(5,
                         temp_adapter[tube],
-                        [plate2[i].bottom(z=0) for i in destination_wells],
+                        [plate2[i].bottom(z=0.1) for i in destination_wells],
                         rate = speed,
                         mix_before=(1, 10),
                         disposal_vol=5)  # Distributing to three consecutive columns
@@ -207,7 +207,7 @@ def run(protocol: protocol_api.ProtocolContext):
     #Step 10: Pipette triplicate of controls from plate1 column 1 to plate2 columns 1,2,3 
     p50_multi.distribute(5, 
                         plate1['A1'], 
-                        [plate2[f'A{i}'].bottom(z=0) for i in range(1, 4)],
+                        [plate2[f'A{i}'].bottom(z=0.1) for i in range(1, 4)],
                         rate= speed,
                         mix_before=(1, 10),
                         disposal_vol=5)
