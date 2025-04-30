@@ -11,7 +11,7 @@ import time
 metadata = {
     'protocolName': 'BCA Assay w/out Normalization',
     'author': 'Assistant',
-    'description': 'Serial dilution of BSA standard and sample processing. This includes cooling samples to 4c, heating plate to 37c with shaking and recording a video of the whole process. Place BSA Standard in A1, Lysis buffer in A2, change the number of samples and place samples in row B starting at B1. MINIMUM Sample volumen in eppendorf tubes is 40 uL. '
+    'description': 'Serial dilution of BSA standard and sample processing. This includes cooling samples to 4c, heating plate to 37c with shaking and recording a video of the whole process. '
 }
 
 requirements = {
@@ -22,9 +22,11 @@ requirements = {
 def run(protocol: protocol_api.ProtocolContext):
     #######################################################################################
     protocol.comment(
-        "Place BSA Standard in A1, Lysis buffer in A2, tbta in A3, biotin in A4, cuso4 in A5, tcep in A6 and samples in row B")
+        "Place BSA Standard in A1, reagents a, b, c and Lysis buffer in reservoir, and samples starting in row B")
     protocol.comment("Running the BCA assay")
 
+    #Speed of pipetting NP40 lysis buffer=0.35, 2M Urea in EPPS=0.75
+    speed= 0.3
     target_concentration = 1
     final_volume = 0.5
     num_samples = 10 #change this to the number of samples you need to run. The maximum is 18.
@@ -88,9 +90,10 @@ def run(protocol: protocol_api.ProtocolContext):
     p1000_multi.distribute(50, 
          reservoir['A7'],
          plate1['A1'],
-         rate = 0.35,
+         rate = speed,
          delay = 2,
-         new_tip='once')
+         new_tip='once',
+         blow_out=True)
 
     # Step 2: move the 200uL partial tips to D4 and then the 50 uL partial tips to B3
     protocol.move_labware(labware=tips_200, new_location="D4", use_gripper=True)
@@ -103,7 +106,7 @@ def run(protocol: protocol_api.ProtocolContext):
     p50_multi.transfer(50,
         temp_adapter['A1'],
         plate1['A1'],
-        rate = 0.35,
+        rate = speed,
         delay = 2,
         mix_after=(3, 40),
         new_tip='once')
@@ -115,7 +118,7 @@ def run(protocol: protocol_api.ProtocolContext):
         p50_multi.transfer(50,
                          plate1[f'{source}1'],
                          plate1[f'{dest}1'],
-                         rate = 0.5,
+                         rate = speed,
                          mix_after=(3, 40),
                          new_tip='never', 
                          disposal_vol=0)
@@ -158,11 +161,12 @@ def run(protocol: protocol_api.ProtocolContext):
         destination_wells = [f'{row}{base_column + (i % 3)}' for i in range(3)]  # Generate wells like A4, A5, A6 or B4, B5, B6, etc.
         
         #Transfer the samples onto plate 2
-        p50_multi.distribute(
-            10,
-            temp_adapter[tube],
-            [plate2[i] for i in destination_wells],
-            rate = 0.5)  # Distributing to three consecutive columns
+        p50_multi.distribute(5,
+                            temp_adapter[tube],
+                            [plate2[i].bottom(z=0) for i in destination_wells],
+                            rate = speed,
+                            mix_before=(1, 10),
+                            disposal_vol=5)  # Distributing to three consecutive columns
 
     # Step 8: move the 50uL complete tips to A3
     protocol.move_labware(labware=tips_50, new_location="A3", use_gripper=True)
@@ -171,7 +175,11 @@ def run(protocol: protocol_api.ProtocolContext):
     p50_multi.configure_nozzle_layout(style=ALL, tip_racks=[tips_50]) #, 
 
     #Step 10: Pipette triplicate of controls from plate1 column 1 to plate2 columns 1,2,3 
-    p50_multi.distribute(10, plate1['A1'], [plate2[f'A{i}'] for i in range(1, 4)])
+    p50_multi.distribute(5, 
+                        plate1['A1'], 
+                        [plate2[f'A{i}'].bottom(z=0) for i in range(1, 4)],
+                        rate= speed,
+                        disposal_vol=5)
 
     # Step 11: move the 50 uL partial tips to C3 and the 200uL complete tips to B3
     protocol.move_labware(labware=partial_50, new_location="A4", use_gripper=True)
@@ -181,29 +189,34 @@ def run(protocol: protocol_api.ProtocolContext):
     p1000_multi.configure_nozzle_layout(style=ALL, tip_racks=[tips_1000]) #,
 
     # Step 13: Add reagent A
-    p1000_multi.distribute(75,
+    p1000_multi.distribute(50,
                         reservoir['A1'],
                         plate2.wells(),
-                        new_tip='once')
+                        new_tip='once',
+                        disposal_vol=50,)
 
     # Step 14: Add reagent B
-    p1000_multi.distribute(72,
+    p1000_multi.distribute(48,
                         reservoir['A3'],
                         plate2.wells(),
-                        new_tip='once')
+                        new_tip='once',
+                        disposal_vol=50)
 
     # Step 15: Add reagent c
-    p50_multi.distribute(3,
+    p50_multi.distribute(2,
                         reservoir['A5'],
                         plate2.wells(),
-                        new_tip='once')
+                        new_tip='once',
+                        rate = speed,
+                        mix_after=(2, 10),
+                        disposal_vol=5)
 
     #Step 16: move plate 2 to the heater shaker and incubate at 37c
     heater_shaker.open_labware_latch()
     protocol.move_labware(labware=plate2, new_location=hs_adapter,use_gripper=True)
     heater_shaker.close_labware_latch()
     heater_shaker.set_and_wait_for_shake_speed(500)
-    protocol.delay(minutes=5)
+    protocol.delay(minutes=15)
 
     #Step 17 deactivate heater shaker and temp modules
     heater_shaker.deactivate_shaker()
