@@ -20,7 +20,7 @@ requirements = {
 }
 
 def run(protocol: protocol_api.ProtocolContext):
-    #######################################################################################
+    # ---------------- BCA Assay for Preprepared Lysates ----------------
     protocol.comment("Running the BCA assay")
     
     #Speed of pipetting NP40 lysis buffer=0.35, 2M Urea in EPPS=0.3
@@ -254,8 +254,7 @@ def run(protocol: protocol_api.ProtocolContext):
     heater_shaker.deactivate_heater()
     heater_shaker.open_labware_latch()
 
-    #######################################################################################
-    # Normalizing BCA Assay
+    # ---------------- Normalizing BCA Assay ----------------
     protocol.comment("Place BCA assay absorbance data in /var/lib/jupyter/notebooks/TWH, load new deep well plate into hs_adapter, and new tube rack into A2 (with click mix, beads and TCEP/IAA)")
     
     # Pause the protocol until the user loads the file to /var/lib/jupyter/notebooks
@@ -287,6 +286,7 @@ def run(protocol: protocol_api.ProtocolContext):
     # Get today's date in YYMMDD format
     today_date = datetime.date.today().strftime("%y%m%d")
 
+    # For debugging, change the file from wait_for_file.py to wait_for_file_debug.py
     find_file = subprocess.Popen(['python3',"/var/lib/jupyter/notebooks/wait_for_file.py"],stdout=subprocess.PIPE,
         text=True)
     stdout, stderr = find_file.communicate()
@@ -370,7 +370,7 @@ def run(protocol: protocol_api.ProtocolContext):
         p1000_multi.transfer(diluent_volume, reservoir['A7'], plate3[destination_well], rate=0.5, new_tip='once')
         p50_multi.transfer(normalized_volume, temp_adapter[source_well], plate3[destination_well], rate=0.5, new_tip='once')
 
-    #########################################################################################
+    # ---------------- Desalting ----------------
     protocol.comment("Desalting")
 
     # mix the sp3 beads to homogenize. For a 10-plex sample, you need atleast 600 uL of beads.
@@ -450,6 +450,7 @@ def run(protocol: protocol_api.ProtocolContext):
     #Remember the volume added to the samples
     added_vol = added_vol + 200
 
+    # ---------------- Reduction, Alkylation and Digestion ----------------
     #set the heater_shaker temp to 37 c for reduce
     heater_shaker.set_and_wait_for_temperature(37)
 
