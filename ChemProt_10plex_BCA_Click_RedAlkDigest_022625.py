@@ -382,6 +382,7 @@ def run(protocol: protocol_api.ProtocolContext):
     p1000_multi.distribute(60, temp_adapter['A2'], [plate3[i] for i in destination_wells])
     
     # incubate beads with shaking for 5 minutes
+    heater_shaker.open_labware_latch()
     protocol.move_labware(labware=plate3, new_location=plate_adapter, use_gripper=True)
     heater_shaker.close_labware_latch()
     heater_shaker.set_and_wait_for_shake_speed(1000)
