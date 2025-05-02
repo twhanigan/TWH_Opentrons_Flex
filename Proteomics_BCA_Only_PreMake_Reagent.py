@@ -189,9 +189,9 @@ def run(protocol: protocol_api.ProtocolContext):
     p1000_multi.configure_nozzle_layout(style=ALL, tip_racks=[tips_1000]) #,
 
     #Make combined BCA Reagent
-    A_vol = num_samples *50*1.50
-    B_vol = num_samples *48*1.5
-    C_vol = num_samples *2*1.5
+    A_vol = (num_samples*50*3*1.5)/8
+    B_vol = (num_samples*48*3*1.5)/8
+    C_vol = (num_samples*2*3*1.5)/8
     comb_vol = 100
 
     p1000_multi.distribute(A_vol, reservoir['A1'], reservoir['A9'],new_tip='once', disposal_vol=50,)

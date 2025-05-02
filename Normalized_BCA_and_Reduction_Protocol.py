@@ -57,7 +57,7 @@ def run(protocol: protocol_api.ProtocolContext):
     bsa_reag_c = protocol.define_liquid(name = 'Reagent C', display_color="#FF3300")
     SP3_Beads = protocol.define_liquid(name='SP3 Beads', display_color="#00FF00")  # Red
     empty_2mL = protocol.define_liquid(name='empty_2mL', display_color="#1685A4")  # SteelBlue
-    K2CO3 = protocol.define_liquid(name='TBTA', display_color="#FF6600")  # Purple
+    K2CO3 = protocol.define_liquid(name='K2CO3', display_color="#FF6600")  # Purple
     tcep = protocol.define_liquid(name='TCEP', display_color="#0066FF")  # Orange
     empty_2mL = protocol.define_liquid(name='empty_2mL', display_color="#1685A4")  # SteelBlue
     IAA =  protocol.define_liquid(name='IAA', display_color="#AA00FF")  # ?
@@ -68,7 +68,6 @@ def run(protocol: protocol_api.ProtocolContext):
     trypsin = protocol.define_liquid(name='Trypsin in EPPS', display_color="#9900FF")  # Gold
     cacl2 = protocol.define_liquid(name='CaCl2', display_color="#FF3300")  # LimeGreen
     sample_liquids = [protocol.define_liquid(name = f'Sample {i + 1}', display_color="#FFA000",) for i in range(num_samples)]
-
 
     # Reservoir assignments for washes and digestion
     reservoir['A1'].load_liquid(liquid=bsa_reag_a, volume=15000)  
@@ -83,17 +82,17 @@ def run(protocol: protocol_api.ProtocolContext):
     # Trypsin and CaCl2 for digestion
     temp_adapter['A1'].load_liquid(liquid=bsa_standard, volume=1000)  # 20 mg/ml BSA standard
     temp_adapter['A2'].load_liquid(liquid=SP3_Beads, volume=1000)  # Additional lysis buffer for SP3
-    temp_adapter['D1'].load_liquid(liquid=tcep, volume=1000)  # 20 mg/ml BSA standard
-    temp_adapter['D2'].load_liquid(liquid=K2CO3, volume=1000)  # Additional lysis buffer for SP3
-    temp_adapter['D3'].load_liquid(liquid=IAA, volume=1000)  # 20 mg/ml BSA standard
-    temp_adapter['D4'].load_liquid(liquid=empty_2mL, volume=0)  # Additional lysis buffer for SP3
+    temp_adapter['A3'].load_liquid(liquid=tcep, volume=1000)  # 20 mg/ml BSA standard
+    temp_adapter['A4'].load_liquid(liquid=K2CO3, volume=1000)  # Additional lysis buffer for SP3
+    temp_adapter['A5'].load_liquid(liquid=IAA, volume=1000)  # 20 mg/ml BSA standard
+    temp_adapter['A6'].load_liquid(liquid=empty_2mL, volume=0)  # Additional lysis buffer for SP3
     temp_adapter['D5'].load_liquid(liquid=cacl2, volume=500)  # CaCl2
     temp_adapter['D6'].load_liquid(liquid=trypsin, volume=2000)  # Trypsin in EPPS 
 
     partial_50 = protocol.load_labware('opentrons_flex_96_filtertiprack_50ul', 'A2')
     partial_1000 = protocol.load_labware('opentrons_flex_96_filtertiprack_1000ul', 'B3')
     tips_1000 = protocol.load_labware('opentrons_flex_96_filtertiprack_1000ul', 'C4')
-    tips_1000_2 = protocol.load_labware('opentrons_flex_96_filtertiprack_1000ul', 'A4')
+    #tips_1000_2 = protocol.load_labware('opentrons_flex_96_filtertiprack_1000ul', 'A4')
     tips_200 = protocol.load_labware('opentrons_flex_96_filtertiprack_200ul', 'D4')
 
     # Load instruments with updated tip racks
@@ -227,7 +226,7 @@ def run(protocol: protocol_api.ProtocolContext):
     p1000_multi.distribute(60, temp_adapter['A2'], [plate3[i] for i in destination_wells])
     
     # incubate beads with shaking for 5 minutes
-    protocol.move_labware(labware=plate3, new_location=temp_adapter, use_gripper=True)
+    protocol.move_labware(labware=plate3, new_location=plate_adapter, use_gripper=True)
     heater_shaker.close_labware_latch()
     heater_shaker.set_and_wait_for_shake_speed(1000)
     protocol.delay(minutes=5)
@@ -247,9 +246,6 @@ def run(protocol: protocol_api.ProtocolContext):
 
     # Add 100% EtOH to the sample columns and use air gap for volatility
     p1000_multi.distribute(600, reservoir['A8'], destination_wells_col, new_tip='once',air_gap=10)
-    heater_shaker.set_and_wait_for_shake_speed(1000)
-    protocol.delay(minutes=5)
-    heater_shaker.deactivate_shaker()
 
     # incubate ethanol with shaking for 5 minutes
     heater_shaker.set_and_wait_for_shake_speed(1000)
@@ -323,9 +319,10 @@ def run(protocol: protocol_api.ProtocolContext):
     protocol.delay(minutes=5) #################change me back to 30
     heater_shaker.deactivate_shaker()
 
-    #Configure the p100 pipette to use All tips
-    protocol.move_labware(labware=tips_1000_2, new_location="C3", use_gripper=True)
-    p1000_multi.configure_nozzle_layout(style=ALL, tip_racks=[tips_1000_2])
+    #Configure the p100 pipette to use All tips ###############This is where we used tips_1000_2 previously
+    #protocol.move_labware(labware=tips_1000_2, new_location="C3", use_gripper=True)
+    #p1000_multi.configure_nozzle_layout(style=ALL, tip_racks=[tips_1000_2])
+    p1000_multi.configure_nozzle_layout(style=ALL, tip_racks=[partial_1000])
 
     # Add 100% EtOH and wash beads 3 times with 80% EtOH
     p1000_multi.distribute(400, reservoir['A8'], destination_wells_col, new_tip='once')
@@ -340,9 +337,6 @@ def run(protocol: protocol_api.ProtocolContext):
     protocol.move_labware(labware=plate3, new_location=mag_block, use_gripper=True)
     protocol.delay(minutes=3)
     p1000_multi.consolidate(520, [well.bottom(z=2) for well in destination_wells_col], reservoir['A11'], rate = 0.5, new_tip='once')
-    
-    #Remember the volume added to the samples
-    added_vol = added_vol -520
 
     # Wash the beads 3 times with 80% EtoH
     for i in range(3):
@@ -365,14 +359,9 @@ def run(protocol: protocol_api.ProtocolContext):
     # move plate3 to the heater shaker and resuspend in 2 M urea in EPPS
     protocol.move_labware(labware=plate3, new_location='B2', use_gripper=True)
     p1000_multi.distribute(147.5, reservoir['A12'], destination_wells_col, mix_after=(3, 150), new_tip='once')
-    
-    #Remember the volume added to the samples
-    added_vol = added_vol + 147.5
 
     # move the partial 200uL to A4 and then the partial 200 uL tips to B3
-    protocol.move_labware(labware=partial_1000, new_location="B4", use_gripper=True)
-    protocol.move_labware(labware=tips_1000_2, new_location="A4", use_gripper=True)
-    protocol.move_labware(labware=tips_200, new_location="B3", use_gripper=True)
+    protocol.move_labware(labware=tips_200, new_location="B2", use_gripper=True)
 
     #Configure the p50 pipette to use single tip NOTE: this resets the pipettes tip racks!
     p50_multi.configure_nozzle_layout(style=SINGLE, start="A1",tip_racks=[partial_50])
@@ -381,9 +370,6 @@ def run(protocol: protocol_api.ProtocolContext):
     # Add CaCl2, trypsin in epps, and move to shaker
     p1000_multi.distribute(2.5, temp_adapter['D5'], [plate3[i].bottom(z=15) for i in destination_wells], new_tip='once')
     p1000_multi.distribute(150, temp_adapter['D6'], [plate3[i].bottom(z=15) for i in destination_wells], new_tip='once')
-
-    #Remember the volume added to the samples
-    added_vol = added_vol + 2.5 + 50
 
     # Digest overnight
     protocol.move_labware(labware=plate3, new_location=plate_adapter, use_gripper=True)
