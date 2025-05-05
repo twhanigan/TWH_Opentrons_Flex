@@ -217,18 +217,23 @@ def run(protocol: protocol_api.ProtocolContext):
     # Pause the protocol until the user loads the file to /var/lib/jupyter/notebooks
     protocol.pause()
 
-    # Tell the robot that new labware will be placed onto the deck
+        # Tell the robot that new labware will be placed onto the deck
     protocol.move_labware(labware=plate1, new_location=protocol_api.OFF_DECK)
     protocol.move_labware(labware=plate2, new_location=protocol_api.OFF_DECK)
 
-    #Configure the p1000 pipette to use single tip NOTE: this resets the pipettes tip racks!
-    p1000_multi.configure_nozzle_layout(style=SINGLE, start="A1",tip_racks=[tips_1000  ])
+    #Move partial_50 tips to A2
+    protocol.move_labware(labware=partial_50, new_location="A2", use_gripper=True)
+    
+    #Configure the p1000 and p50 pipettes to use single tip NOTE: this resets the pipettes tip racks!
+    p1000_multi.configure_nozzle_layout(style=SINGLE, start="A1",tip_racks=[tips_1000])
+    p50_multi.configure_nozzle_layout(style=SINGLE, start="A1", tip_racks=[partial_50]) #, 
 
     # Load the new labware
     plate3 = protocol.load_labware('thermoscientificnunc_96_wellplate_2000ul', location='B2')  # New deep well plate for final samples
 
     # Construct today's date in the expected format
     today_date = datetime.date.today().strftime("%y%m%d")
+
      # Define the directory path
     directory = Path("/var/lib/jupyter/notebooks/TWH/")
 
@@ -302,6 +307,7 @@ def run(protocol: protocol_api.ProtocolContext):
     unknown_samples['Diluent Volume (mL)'] = final_volume - unknown_samples['Sample Volume (mL)']
     unknown_samples.loc[unknown_samples['Sample Volume (mL)'] > final_volume, ['Sample Volume (mL)', 'Diluent Volume (mL)']] = [final_volume, 0]
     protocol.comment("\nNormalized Unknown Samples (to 1 mg/mL in 500 µL):")
+
     normalized_samples = unknown_samples[['Sample', 'Protein Concentration (mg/mL)', 'Sample Volume (mL)', 'Diluent Volume (mL)']].reset_index().drop(columns='index')
 
     # Write the output and image of data plot to the instrument jupyter notebook directory
@@ -312,10 +318,17 @@ def run(protocol: protocol_api.ProtocolContext):
     # Dilute sample in lysis buffer to 1 mg/ml on deep well plate
     rows = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
     destination_wells  = [f'{rows[i % 8]}{(i // 8)+ 1}' for i in range(len(normalized_samples))]
+    print(unknown_samples[['Sample', 'Protein Concentration (mg/mL)', 'Sample Volume (mL)', 'Diluent Volume (mL)']])
+
+    normalized_samples = unknown_samples[['Sample', 'Protein Concentration (mg/mL)', 'Sample Volume (mL)', 'Diluent Volume (mL)']].reset_index().drop(columns='index')
+    rows = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
+    destination_wells  = [f'{rows[i % 8]}{(i // 8)+ 1}' for i in range(len(normalized_samples))]
+
     for i, row in normalized_samples.iterrows():
         source_well = sample_locations[i]
         normalized_volume = row['Sample Volume (mL)']
         diluent_volume = 500 - normalized_volume
         destination_well = destination_wells[i]
-        p1000_multi.transfer(diluent_volume, reservoir['A7'], plate3[destination_well], rate=0.5, new_tip='once')
-        p50_multi.transfer(normalized_volume, temp_adapter[source_well], plate3[destination_well], rate=0.5, new_tip='once')
+        p1000_multi.transfer(normalized_volume, temp_adapter[source_well], plate3[destination_well], rate=0.5, new_tip='once')
+        p50_multi.transfer(diluent_volume, reservoir['A7'], plate3[destination_well], rate=0.5, new_tip='once')
+
