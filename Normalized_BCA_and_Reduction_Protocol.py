@@ -246,7 +246,7 @@ def run(protocol: protocol_api.ProtocolContext):
     destination_wells_col = [col[0] for col in destination_columns]  # Only use top row for multi-channel pipette
 
     # Add 100% EtOH to the sample columns and use air gap for volatility
-    p1000_multi.distribute(600, reservoir['A8'], destination_wells_col, new_tip='once',air_gap=10)
+    p1000_multi.distribute(600, reservoir['A8'], [well.bottom(z=10) for well in destination_wells_col], new_tip='once',air_gap=10)
 
     # incubate ethanol with shaking for 5 minutes
     heater_shaker.set_and_wait_for_shake_speed(1000)
@@ -282,9 +282,6 @@ def run(protocol: protocol_api.ProtocolContext):
     # resuspend in 2 M urea in EPPS with 0.2% SDS and move to shaker
     protocol.move_labware(labware=plate3, new_location='B2', use_gripper=True)
     p1000_multi.distribute(200, reservoir['A12'], destination_wells_col, mix_after=(3, 150), new_tip='once')
-
-    #Remember the volume added to the samples
-    added_vol = added_vol + 200
 
     # ---------------- Reduction, Alkylation and Digestion ----------------
     #set the heater_shaker temp to 37 c for reduce
