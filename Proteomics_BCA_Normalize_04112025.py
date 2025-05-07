@@ -48,7 +48,7 @@ def run(protocol: protocol_api.ProtocolContext):
     temp_adapter = temp_module.load_labware('opentrons_24_aluminumblock_nest_1.5ml_screwcap')
 
     #set the heater_shaker temp to 60C
-    heater_shaker.set_and_wait_for_temperature(37)
+    heater_shaker.set_and_wait_for_temperature(50)
 
     #set the temp module to 0c
     temp_module.set_temperature(celsius=10)
