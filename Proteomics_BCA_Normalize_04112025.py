@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 import subprocess
 from pathlib import Path
+#import matplotlib.pyplot as plt
 import datetime
 import time
 
@@ -230,12 +231,16 @@ def run(protocol: protocol_api.ProtocolContext):
     # Load the new labware
     plate3 = protocol.load_labware('thermoscientificnunc_96_wellplate_2000ul', location='B2')  # New deep well plate for final samples
 
-    # Define the directory path
+    # Construct today's date in the expected format
+    today_date = datetime.date.today().strftime("%y%m%d")
+
+     # Define the directory path
     directory = Path("/var/lib/jupyter/notebooks/TWH/")
 
     # Get today's date in YYMMDD format
     today_date = datetime.date.today().strftime("%y%m%d")
 
+    # For debugging, change the file from wait_for_file.py to wait_for_file_debug.py
     find_file = subprocess.Popen(['python3',"/var/lib/jupyter/notebooks/wait_for_file.py"],stdout=subprocess.PIPE,
         text=True)
     stdout, stderr = find_file.communicate()
@@ -244,6 +249,7 @@ def run(protocol: protocol_api.ProtocolContext):
         raise ValueError(f"Error while waiting for file: {stderr}")
 
     # Extract the file path from the output
+    #file_path = "C:\\Users\\thanigan\\Documents\\GitHub\\TWH_Opentrons_Flex\\WholeProt3_250430.xlsx"
     file_path = stdout.splitlines()[1]
     if not file_path:
         raise ValueError("No file path returned by wait_for_file.py")
@@ -301,6 +307,17 @@ def run(protocol: protocol_api.ProtocolContext):
     unknown_samples['Diluent Volume (mL)'] = final_volume - unknown_samples['Sample Volume (mL)']
     unknown_samples.loc[unknown_samples['Sample Volume (mL)'] > final_volume, ['Sample Volume (mL)', 'Diluent Volume (mL)']] = [final_volume, 0]
     protocol.comment("\nNormalized Unknown Samples (to 1 mg/mL in 500 µL):")
+
+    normalized_samples = unknown_samples[['Sample', 'Protein Concentration (mg/mL)', 'Sample Volume (mL)', 'Diluent Volume (mL)']].reset_index().drop(columns='index')
+
+    # Write the output and image of data plot to the instrument jupyter notebook directory
+    filename = f"Protocol_output_{today_date}.csv"
+    output_file_destination_path = directory.joinpath(filename)
+    normalized_samples.to_csv(output_file_destination_path)
+
+    # Dilute sample in lysis buffer to 1 mg/ml on deep well plate
+    rows = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
+    destination_wells  = [f'{rows[i % 8]}{(i // 8)+ 1}' for i in range(len(normalized_samples))]
     print(unknown_samples[['Sample', 'Protein Concentration (mg/mL)', 'Sample Volume (mL)', 'Diluent Volume (mL)']])
 
     normalized_samples = unknown_samples[['Sample', 'Protein Concentration (mg/mL)', 'Sample Volume (mL)', 'Diluent Volume (mL)']].reset_index().drop(columns='index')
@@ -312,5 +329,6 @@ def run(protocol: protocol_api.ProtocolContext):
         normalized_volume = row['Sample Volume (mL)']
         diluent_volume = 500 - normalized_volume
         destination_well = destination_wells[i]
-        p1000_multi.transfer(normalized_volume, temp_adapter[source_well], plate3[destination_well], rate=0.5, new_tip='once')
-        p50_multi.transfer(diluent_volume, reservoir['A7'], plate3[destination_well], rate=0.5, new_tip='once')
+        p50_multi.transfer(normalized_volume, temp_adapter[source_well], plate3[destination_well], rate=0.5, new_tip='once')
+        p1000_multi.transfer(diluent_volume, reservoir['A7'], plate3[destination_well], rate=0.5, new_tip='once')
+

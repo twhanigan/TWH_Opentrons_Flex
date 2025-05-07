@@ -51,7 +51,7 @@ def run(protocol: protocol_api.ProtocolContext):
     temp_adapter = temp_module.load_labware('opentrons_24_aluminumblock_nest_1.5ml_screwcap')
 
     #set the heater_shaker temp to 60C
-    heater_shaker.set_and_wait_for_temperature(50)
+    heater_shaker.set_and_wait_for_temperature(37)
 
     #set the temp module to 0c
     temp_module.set_temperature(celsius=10)
@@ -188,28 +188,26 @@ def run(protocol: protocol_api.ProtocolContext):
     #Step 12: Load the p1000 with full tip rack
     p1000_multi.configure_nozzle_layout(style=ALL, tip_racks=[tips_1000]) #,
 
+    #Make combined BCA Reagent
+    A_vol = (num_samples*50*3*1.5)/8
+    B_vol = (num_samples*48*3*1.5)/8
+    C_vol = (num_samples*2*3*1.5)/8
+    comb_vol = 100
+
+    p1000_multi.distribute(A_vol, reservoir['A1'], reservoir['A9'],new_tip='once', disposal_vol=50,)
+    p1000_multi.distribute(B_vol, reservoir['A1'], reservoir['A9'],new_tip='once', disposal_vol=50)
+    p1000_multi.distribute(C_vol, reservoir['A1'], reservoir['A9'],new_tip='once', disposal_vol=50,rate = speed, mix_after=(3, 500))
+
     # Step 13: Add reagent A
-    p1000_multi.distribute(50,
-                        reservoir['A1'],
+    p1000_multi.distribute(comb_vol,
+                        reservoir['A9'],
                         plate2.wells(),
                         new_tip='once',
-                        disposal_vol=50,)
+                        z=12,
+                        disposal_vol=50,
+                        rate=speed)
 
-    # Step 14: Add reagent B
-    p1000_multi.distribute(48,
-                        reservoir['A3'],
-                        plate2.wells(),
-                        new_tip='once',
-                        disposal_vol=50)
-
-    # Step 15: Add reagent c
-    p50_multi.distribute(2,
-                        reservoir['A5'],
-                        plate2.wells(),
-                        new_tip='once',
-                        rate = speed,
-                        mix_after=(2, 10),
-                        disposal_vol=5)
+    
 
     #Step 16: move plate 2 to the heater shaker and incubate at 37c
     heater_shaker.open_labware_latch()
@@ -306,3 +304,4 @@ def run(protocol: protocol_api.ProtocolContext):
         filename = f"Protocol_output_{today_date}.csv"
         output_file_destination_path = directory.joinpath(filename)
         normalized_samples.to_csv(output_file_destination_path)
+
