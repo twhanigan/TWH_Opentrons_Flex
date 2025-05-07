@@ -329,6 +329,6 @@ def run(protocol: protocol_api.ProtocolContext):
         normalized_volume = row['Sample Volume (mL)']
         diluent_volume = 500 - normalized_volume
         destination_well = destination_wells[i]
-        p1000_multi.transfer(normalized_volume, temp_adapter[source_well], plate3[destination_well], rate=0.5, new_tip='once')
-        p50_multi.transfer(diluent_volume, reservoir['A7'], plate3[destination_well], rate=0.5, new_tip='once')
+        p50_multi.transfer(normalized_volume, temp_adapter[source_well], plate3[destination_well], rate=0.5, new_tip='once')
+        p1000_multi.transfer(diluent_volume, reservoir['A7'], plate3[destination_well], rate=0.5, new_tip='once')
 

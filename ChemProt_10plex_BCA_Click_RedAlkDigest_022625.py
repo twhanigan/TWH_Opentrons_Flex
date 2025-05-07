@@ -263,6 +263,7 @@ def run(protocol: protocol_api.ProtocolContext):
     # Tell the robot that new labware will be placed onto the deck
     protocol.move_labware(labware=plate1, new_location=protocol_api.OFF_DECK)
     protocol.move_labware(labware=plate2, new_location=protocol_api.OFF_DECK)
+    protocol.move_labware(labware=plate3,new_location='B2')
 
     #trick heater_shaker into using 96-well plates
     protocol.move_labware(labware=hs_adapter, new_location=protocol_api.OFF_DECK, use_gripper=False)
@@ -272,8 +273,6 @@ def run(protocol: protocol_api.ProtocolContext):
     protocol.move_labware(labware=partial_50, new_location="A2", use_gripper=True)
     protocol.move_labware(labware=tips_1000, new_location="C4", use_gripper=True)
     protocol.move_labware(labware=partial_1000, new_location="B3", use_gripper=True)
-    #protocol.move_labware(labware=tips_1000_2,new_location='A4')
-    protocol.move_labware(labware=plate3,new_location='B2')
 
     #Configure the p1000 and p50 pipettes to use single tip NOTE: this resets the pipettes tip racks!
     p1000_multi.configure_nozzle_layout(style=SINGLE, start="A1",tip_racks=[partial_1000])
