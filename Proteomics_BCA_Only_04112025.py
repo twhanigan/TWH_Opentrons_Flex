@@ -306,4 +306,3 @@ def run(protocol: protocol_api.ProtocolContext):
         filename = f"Protocol_output_{today_date}.csv"
         output_file_destination_path = directory.joinpath(filename)
         normalized_samples.to_csv(output_file_destination_path)
-
