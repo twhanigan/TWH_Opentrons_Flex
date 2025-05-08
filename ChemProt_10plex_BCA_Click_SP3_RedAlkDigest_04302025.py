@@ -31,12 +31,11 @@ def run(protocol: protocol_api.ProtocolContext):
     num_samples = 10 #change this to the number of samples you need to run. The maximum is 18.
     num_rows = 8  # A-H
     num_replicates = 3  # the number of replicates
-    tmt_row = 'A'  # User must update this value manually or use input mechanism if supported
 
     #Start recording the video
     video_output_file = 'BCA_Assay_012425.mp4'
     device_index = "<video2>"
-    duration = 3600
+    duration = 1800
     video_process = subprocess.Popen(["python3", "/var/lib/jupyter/notebooks/record_video.py"])
 
     # Load modules
@@ -61,20 +60,24 @@ def run(protocol: protocol_api.ProtocolContext):
     tips_50 = protocol.load_labware('opentrons_flex_96_filtertiprack_50ul', 'A4')
     partial_50 = protocol.load_labware(load_name="opentrons_flex_96_filtertiprack_50ul",location="A3")
     tips_200 = protocol.load_labware(load_name='opentrons_flex_96_filtertiprack_200ul', location='B3')
+    #partial_200 = protocol.load_labware(load_name="opentrons_flex_96_filtertiprack_200ul",location="B4")
     tips_1000 = protocol.load_labware(load_name="opentrons_flex_96_filtertiprack_1000ul",location="C4")
+    #tips_1000_2 = protocol.load_labware(load_name="opentrons_flex_96_filtertiprack_1000ul",location=protocol_api.OFF_DECK)
     partial_1000 = protocol.load_labware(load_name="opentrons_flex_96_filtertiprack_1000ul",location="B4")
     plate1 = protocol.load_labware('opentrons_96_wellplate_200ul_pcr_full_skirt', 'A2')
     plate2 = protocol.load_labware('corning_96_wellplate_360ul_flat', 'B2')
     plate3 = protocol.load_labware('nest_96_wellplate_2ml_deep', location=protocol_api.OFF_DECK) 
-    tmt_plate = protocol.load_labware('opentrons_96_wellplate_200ul_pcr_full_skirt', location=protocol_api.OFF_DECK)
     reservoir = protocol.load_labware('nest_12_reservoir_15ml', 'C2')
     
     # load the liquids to the tube racks and reservoirs
-    # Define all liquids used in the protocol with unique colors
     bsa_standard = protocol.define_liquid(name='BSA Standard', display_color="#FF00FF")  # Brown
     bsa_reag_a = protocol.define_liquid(name = 'Reagent A', display_color="#00FFFF")
     bsa_reag_b = protocol.define_liquid(name = 'Reagent B', display_color="#FFFF00")
     bsa_reag_c = protocol.define_liquid(name = 'Reagent C', display_color="#FF3300")
+    biotin_azide = protocol.define_liquid(name = 'Biotin Azide', display_color="#FF0011",)
+    copper_sulfate = protocol.define_liquid(name = 'CuSO4', display_color="#FF0022",)
+    tbta = protocol.define_liquid(name = 'TBTA', display_color="#FF0033",)
+    tcep_click = protocol.define_liquid(name = 'TCEP', display_color="#FF0044",) #2.4 mg/ml
     SP3_Beads = protocol.define_liquid(name='SP3 Beads', display_color="#00FF00")  # Red
     K2CO3 = protocol.define_liquid(name='K2CO3', display_color="#FF6600")  # Purple
     tcep = protocol.define_liquid(name='TCEP', display_color="#0066FF")  # Orange
@@ -86,7 +89,6 @@ def run(protocol: protocol_api.ProtocolContext):
     ethanol = protocol.define_liquid(name='80% Ethanol', display_color="#4682B4")  # SteelBlue
     trypsin = protocol.define_liquid(name='Trypsin in EPPS', display_color="#9900FF")  # Gold
     cacl2 = protocol.define_liquid(name='CaCl2', display_color="#FF3300")  # LimeGreen
-    hydrxl_amine = protocol.define_liquid(name='hydroxyl amine', display_color="#FF1000")  # LimeGreen
     sample_liquids = [protocol.define_liquid(name = f'Sample {i + 1}', display_color="#FFA000",) for i in range(num_samples)]
 
     # Reservoir assignments for washes and digestion
@@ -106,7 +108,10 @@ def run(protocol: protocol_api.ProtocolContext):
     temp_adapter['A4'].load_liquid(liquid=K2CO3, volume=1000)  # Additional lysis buffer for SP3
     temp_adapter['A5'].load_liquid(liquid=IAA, volume=1000)  # 20 mg/ml BSA standard
     temp_adapter['A6'].load_liquid(liquid=empty_2mL, volume=0)  # Additional lysis buffer for SP3
-    temp_adapter['D4'].load_liquid(liquid=hydrxl_amine, volume=1500)  # Additional lysis buffer for SP3
+    temp_adapter['D1'].load_liquid(liquid=copper_sulfate, volume=1500) #click
+    temp_adapter['D2'].load_liquid(liquid=biotin_azide, volume=1500) #click
+    temp_adapter['D3'].load_liquid(liquid=tcep_click, volume=1500) #click
+    temp_adapter['D4'].load_liquid(liquid=tbta, volume=1500) #click
     temp_adapter['D5'].load_liquid(liquid=cacl2, volume=500)  # CaCl2
     temp_adapter['D6'].load_liquid(liquid=trypsin, volume=2000)  # Trypsin in EPPS 
 
@@ -266,7 +271,6 @@ def run(protocol: protocol_api.ProtocolContext):
     protocol.move_labware(labware=plate1, new_location=protocol_api.OFF_DECK)
     protocol.move_labware(labware=plate2, new_location=protocol_api.OFF_DECK)
     protocol.move_labware(labware=plate3,new_location='B2')
-    protocol.move_labware(labware=tmt_plate, new_location='C3')
 
     #trick heater_shaker into using 96-well plates
     protocol.move_labware(labware=hs_adapter, new_location=protocol_api.OFF_DECK, use_gripper=False)
@@ -372,6 +376,30 @@ def run(protocol: protocol_api.ProtocolContext):
         p1000_multi.transfer(diluent_volume, reservoir['A7'], plate3[destination_well], rate=0.5, new_tip='once')
         p50_multi.transfer(normalized_volume, temp_adapter[source_well], plate3[destination_well], rate=0.5, new_tip='once')
 
+    # ---------------- Click Reaction ----------------
+    protocol.comment("Running click reaction")
+    temp_adapter['D1'].load_liquid(liquid=copper_sulfate, volume=1500) #click
+    temp_adapter['D2'].load_liquid(liquid=biotin_azide, volume=1500) #click
+    temp_adapter['D3'].load_liquid(liquid=tcep_click, volume=1500) #click
+    temp_adapter['D4'].load_liquid(liquid=tbta, volume=1500) #click
+    #Pipette biotin, tbta, cuso4, and tcep
+    p1000_multi.distribute(110, temp_adapter['D2'], temp_adapter['A5'], new_tip='always')
+    p1000_multi.distribute(660, temp_adapter['D4'], temp_adapter['A5'], new_tip='always')
+    p1000_multi.distribute(220, temp_adapter['D1'], temp_adapter['A5'], new_tip='always')
+    p1000_multi.distribute(220, epp_rack['A4'], temp_adapter['A5'], new_tip='always')
+        
+    #Pipette the click reaction premix
+    p1000_multi.distribute(55, epp_rack['A5'], [plate3[i] for i in destination_wells], new_tip='always')
+
+    #Remember the volume added to the samples
+    added_vol = final_volume_ul + 55
+
+    # Step 11: shake the sample plate for click reaction
+    heater_shaker.close_labware_latch()
+    heater_shaker.set_and_wait_for_shake_speed(600)
+    protocol.delay(minutes=60)
+    heater_shaker.deactivate_shaker()
+    #heater_shaker.open_labware_latch()
     # ---------------- Desalting ----------------
     protocol.comment("Desalting")
 
@@ -476,6 +504,8 @@ def run(protocol: protocol_api.ProtocolContext):
     heater_shaker.deactivate_shaker()
 
     #Configure the p100 pipette to use All tips ###############This is where we used tips_1000_2 previously
+    #protocol.move_labware(labware=tips_1000_2, new_location="C3", use_gripper=True)
+    #p1000_multi.configure_nozzle_layout(style=ALL, tip_racks=[tips_1000_2])
     p1000_multi.configure_nozzle_layout(style=ALL, tip_racks=[partial_1000])
 
     # Add 100% EtOH and wash beads 3 times with 80% EtOH
@@ -522,7 +552,7 @@ def run(protocol: protocol_api.ProtocolContext):
     p1000_multi.configure_nozzle_layout(style=SINGLE, start="A1",tip_racks=[tips_200])
 
     # Add CaCl2, trypsin in epps, and move to shaker
-    p50_multi.distribute(2.5, temp_adapter['D5'], [plate3[i].bottom(z=15) for i in destination_wells], new_tip='once')
+    p1000_multi.distribute(2.5, temp_adapter['D5'], [plate3[i].bottom(z=15) for i in destination_wells], new_tip='once')
     p1000_multi.distribute(150, temp_adapter['D6'], [plate3[i].bottom(z=15) for i in destination_wells], new_tip='once')
 
     # Digest overnight
@@ -531,35 +561,8 @@ def run(protocol: protocol_api.ProtocolContext):
     heater_shaker.set_and_wait_for_shake_speed(1000)
     protocol.delay(minutes=960)
     heater_shaker.deactivate_shaker()
-    protocol.comment("Samples have been digested")
-
-    # ---------------- Post-Digestion Normalization and TMT Reaction ----------------
-    protocol.comment("Running post-digestion Normalization and TMT reaction")
-    #protocol.move_labware(labware=plate3, new_location=plate_adapter, use_gripper=True)
-
-    # Transfer 10 ug in 10 uL volume to new column of plate3 and dilute with EPPS-Urea
-    tmt_dilution_wells = [f'{rows[i % 8]}{(i // 8) + 3}' for i in range(num_samples)]  # Assuming destination column is col 3
-    for i, row in normalized_samples.iterrows():
-        protein_conc = row['Protein Concentration (mg/mL)']
-        sample_vol_ul = min((10 / protein_conc), 10)
-        diluent_vol = 10 - sample_vol_ul
-        source = destination_wells[i]
-        dest = tmt_dilution_wells[i]
-        p50_multi.transfer(sample_vol_ul, plate3[source], plate3[dest], new_tip='once')
-        p50_multi.transfer(diluent_vol, reservoir['A12'], plate3[dest], new_tip='once')
-
-    # Add TMT reagents
-    tmt_sources = [tmt_plate[f'{tmt_row}{i+1}'] for i in range(num_samples)]
-    for source, dest in zip(tmt_sources, tmt_dilution_wells):
-        p50_multi.transfer(5, source, plate3[dest], mix_after=(2, 5), new_tip='once')
-    
-    #Incubate for 2 hours at room temp
-    protocol.delay(minutes=120)
-
-    #Add hydroxylamine solution
-    for source, dest in zip(tmt_sources, tmt_dilution_wells):
-        p50_multi.transfer(1, temp_adapter['D4'], plate3[dest], mix_after=(2, 5), new_tip='once')
     heater_shaker.open_labware_latch()
+    protocol.comment("Samples have been digested")
 
     # Stop video recording after the main task is completed
     video_process.terminate()
