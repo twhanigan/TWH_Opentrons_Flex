@@ -157,9 +157,9 @@ def run(protocol: protocol_api.ProtocolContext):
         else:
             base_column = 8 + (index //8)
 
-        # Prepare destination wells
+        # Prepare destination wells and convert to columns for working reagent addition
         destination_wells = [f'{row}{base_column + (i % 3)}' for i in range(3)]  # Generate wells like A4, A5, A6 or B4, B5, B6, etc.
-        filled_columns.update([1,2,3,base_column, base_column + 1, base_column + 2])
+        filled_columns.update([0,1,2,base_column-1, base_column, base_column + 1])
         #Transfer the samples onto plate 2
         p50_multi.distribute(5,
                             temp_adapter[tube],
@@ -232,7 +232,7 @@ def run(protocol: protocol_api.ProtocolContext):
     protocol.move_labware(labware=plate2, new_location=hs_adapter,use_gripper=True)
     heater_shaker.close_labware_latch()
     heater_shaker.set_and_wait_for_shake_speed(500)
-    protocol.delay(minutes=15)
+    protocol.delay(minutes=10)
 
     #Step 17 deactivate heater shaker and temp modules
     heater_shaker.deactivate_shaker()

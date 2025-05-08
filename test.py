@@ -30,7 +30,7 @@ for index, (row, tube) in enumerate(sample_map):
 
     # Prepare destination wells
     destination_wells = [f'{row}{base_column + (i % 3)}' for i in range(3)]  # Generate wells like A4, A5, A6 or B4, B5, B6, etc.
-    filled_columns.update([1,2,3,base_column, base_column + 1, base_column + 2])
+    filled_columns.update([0,1,2,base_column-1, base_column, base_column + 1])
     filled_columns.update()
 # After loop: compute total volume needed for all used columns
 total_columns = len(filled_columns)
