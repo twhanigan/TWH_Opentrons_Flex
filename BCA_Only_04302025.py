@@ -97,7 +97,6 @@ def run(protocol: protocol_api.ProtocolContext):
 
     # Step 2: move the 200uL partial tips to D4 and then the 50 uL partial tips to B3
     protocol.move_labware(labware=tips_200, new_location="D4", use_gripper=True)
-    #protocol.move_labware(labware=partial_50, new_location="B3", use_gripper=True)
 
     #Step 3: Configure the p50 pipette to use single tip NOTE: this resets the pipettes tip racks!
     p50_multi.configure_nozzle_layout(style=SINGLE, start="A1",tip_racks=[partial_50])
