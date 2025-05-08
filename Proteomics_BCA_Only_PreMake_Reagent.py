@@ -147,6 +147,7 @@ def run(protocol: protocol_api.ProtocolContext):
     # Create a dynamic sample map based on the assigned sample locations
     sample_map = list(map(lambda i,j :(i,j), rows, sample_locations))
 
+    filled_columns = set()
     # Iterate over the sample_map list
     for index, (row, tube) in enumerate(sample_map):
         if index < 8:
@@ -158,7 +159,8 @@ def run(protocol: protocol_api.ProtocolContext):
 
         # Prepare destination wells
         destination_wells = [f'{row}{base_column + (i % 3)}' for i in range(3)]  # Generate wells like A4, A5, A6 or B4, B5, B6, etc.
-        
+        filled_columns.update([base_column, base_column + 1, base_column + 2])
+
         #Transfer the samples onto plate 2
         p50_multi.distribute(5,
                             temp_adapter[tube],
@@ -187,16 +189,14 @@ def run(protocol: protocol_api.ProtocolContext):
     #Step 12: Load the p1000 with full tip rack
     p1000_multi.configure_nozzle_layout(style=ALL, tip_racks=[tips_1000]) #,
 
-    total_wells = (num_samples + 8) * 3
-    total_columns = total_wells // 8
-    if total_wells % 8 != 0:
-        total_columns += 1
-    comb_vol = 100  # volume per well in µL
+    # After loop: compute total volume needed for all used columns
+    total_columns = len(filled_columns)
+    comb_vol = 100  # µL per well
     overage_factor = 1.5
-    total_reagent_vol = total_wells * comb_vol * overage_factor
-    A_vol = total_reagent_vol * 0.50
-    B_vol = total_reagent_vol * 0.48
-    C_vol = total_reagent_vol * 0.02
+    total_reagent_vol = total_columns * 8 * comb_vol * overage_factor
+    A_vol = total_reagent_vol * 0.50/8
+    B_vol = total_reagent_vol * 0.48/8
+    C_vol = total_reagent_vol * 0.02/8
 
     p1000_multi.distribute(A_vol, 
                             reservoir['A1'], 
@@ -216,18 +216,17 @@ def run(protocol: protocol_api.ProtocolContext):
                             rate = speed, 
                             mix_after=(3, 500))
 
-    # Step 13: Add working reagent to all filled wells
-    filled_wells = plate2.wells()[:total_wells]
+    # Get full columns from sample map (above)
+    dest_cols = [plate2.columns()[i] for i in sorted(filled_columns)]
 
     # Dispense working reagent only to the top of filled wells
     p1000_multi.distribute(
         comb_vol,
         reservoir['A9'],
-        [well.top() for well in filled_wells],
+        [well.top(z=0) for col in dest_cols for well in col],
         new_tip='once',
         disposal_vol=50,
         rate=speed)
-
 
     #Step 16: move plate 2 to the heater shaker and incubate at 37c
     heater_shaker.open_labware_latch()
