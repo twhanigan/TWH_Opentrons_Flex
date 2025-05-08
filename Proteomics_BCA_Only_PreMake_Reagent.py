@@ -159,8 +159,7 @@ def run(protocol: protocol_api.ProtocolContext):
 
         # Prepare destination wells
         destination_wells = [f'{row}{base_column + (i % 3)}' for i in range(3)]  # Generate wells like A4, A5, A6 or B4, B5, B6, etc.
-        filled_columns.update([base_column, base_column + 1, base_column + 2])
-
+        filled_columns.update([1,2,3,base_column, base_column + 1, base_column + 2])
         #Transfer the samples onto plate 2
         p50_multi.distribute(5,
                             temp_adapter[tube],
