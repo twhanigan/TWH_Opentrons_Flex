@@ -33,10 +33,7 @@ def run(protocol: protocol_api.ProtocolContext):
     num_replicates = 3  # the number of replicates
 
     #Start recording the video
-    video_output_file = 'BCA_Assay_012425.mp4'
-    device_index = "<video2>"
-    duration = 1800
-    video_process = subprocess.Popen(["python3", "/var/lib/jupyter/notebooks/record_video.py"])
+    video_process = subprocess.Popen(["python3", "/var/lib/jupyter/notebooks/record_video_chemprot.py"])
 
     # Load modules
     heater_shaker = protocol.load_module('heaterShakerModuleV1', 'D1')
