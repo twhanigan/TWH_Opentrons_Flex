@@ -97,19 +97,19 @@ def run(protocol: protocol_api.ProtocolContext):
 
     # Step 1: Distribute mastermix and primer mix into PCR plate starting at row B1:
     p1000_multi.distribute((mastermix_vol*numtotalSamples*num_replicates*2), 
-                            temp_adapter['A1'], 
+                            temp_adapter['A1'].bottom(z=2), 
                             reservoir['A1'], 
                             new_tip='once',
                             mix_before=(1, 10),
                             rate= speed)
 
     p1000_multi.distribute((primer_vol*numtotalSamples*num_replicates*2), 
-                            temp_adapter['A2'], 
+                            temp_adapter['A2'].bottom(z=2), 
                             reservoir['A1'], 
                             new_tip='once')
 
     p1000_multi.distribute((water_vol*numtotalSamples*num_replicates*2), 
-                            temp_adapter['A3'], 
+                            temp_adapter['A3'].bottom(z=2), 
                             reservoir['A1'], 
                             mix_after=(3, 40),
                             new_tip='once')
