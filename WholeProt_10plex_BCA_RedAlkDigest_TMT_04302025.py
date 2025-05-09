@@ -34,10 +34,7 @@ def run(protocol: protocol_api.ProtocolContext):
     tmt_row = 'A'  # User must update this value manually or use input mechanism if supported
 
     #Start recording the video
-    video_output_file = 'BCA_Assay_012425.mp4'
-    device_index = "<video2>"
-    duration = 3600
-    video_process = subprocess.Popen(["python3", "/var/lib/jupyter/notebooks/record_video.py"])
+    video_process = subprocess.Popen(["python3", "/var/lib/jupyter/notebooks/record_video_wholeprot.py"])
 
     # Load modules
     heater_shaker = protocol.load_module('heaterShakerModuleV1', 'D1')
