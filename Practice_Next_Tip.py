@@ -18,8 +18,7 @@ requirements = {
     "apiLevel": "2.21"
 }
 
-def next_tip(self,num_tips: int = 1,starting_tip: Optional[Well] = None,*,
-nozzle_map: Optional[NozzleMapInterface] = None,) -> Optional[Well]:
+def next_tip(self,num_tips: int = 1,starting_tip: Optional[Well] = None,*, nozzle_map: Optional[NozzleMapInterface] = None,):
     """Find the next valid well for pick-up.
     Determines the next valid start tip from which to retrieve the
     specified number of tips. There must be at least `num_tips` sequential
