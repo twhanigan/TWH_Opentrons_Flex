@@ -6,6 +6,7 @@ import subprocess
 from pathlib import Path
 import datetime
 import time
+from typing import Optional, Sequence
 
 metadata = {
     'protocolName': 'BCA Assay with Normalization and Video Recording',
