@@ -9,7 +9,7 @@ import time
 from typing import Optional, Sequence
 
 metadata = {
-    'protocolName': 'BCA Assay with Normalization and Video Recording',
+    'protocolName': 'Next tip',
     'author': 'Assistant',
     'description': 'Serial dilution of BSA standard and sample processing. This includes cooling samples to 4c, heating plate to 37c with shaking and recording a video of the whole process. Place BSA Standard in A1, Lysis buffer in A2, change the number of samples and place samples in row B starting at B1. MINIMUM Sample volumen in eppendorf tubes is 40 uL. '
 }
@@ -19,7 +19,7 @@ requirements = {
     "apiLevel": "2.21"
 }
 
-def next_tip(self,num_tips: int = 1,starting_tip: Optional[Well] = None,*, nozzle_map: Optional[NozzleMapInterface] = None,):
+def next_tip(self,num_tips: int = 1):
     """Find the next valid well for pick-up.
     Determines the next valid start tip from which to retrieve the
     specified number of tips. There must be at least `num_tips` sequential
