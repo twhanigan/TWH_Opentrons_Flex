@@ -58,7 +58,7 @@ def run(protocol: protocol_api.ProtocolContext):
     
     map2 = p50_multi.configure_nozzle_layout(style=ALL, start="A1",tip_racks=[partial_50])
     available_tip = partial_50.next_tip(num_tips=8, partial_50['A1'], map2)
-    if next_tip is None:
+    if available_tip is None:
         protocol.move_labware(labware=tips_50, new_location="A3", use_gripper=True)
     p50_multi.pick_up_tip()
     p50_multi.drop_tip()
