@@ -36,9 +36,9 @@ def run(protocol: protocol_api.ProtocolContext):
     first_tip_row = protocol.params.first_tip_row
     start_tip = first_tip_row + str(first_tip_column)
 
-    tiprack = protocol.load_labware("opentrons_flex_96_tiprack_1000ul", "B1")
+    tiprack = protocol.load_labware("opentrons_flex_96_tiprack_1000ul", "B3")
 
-    m1000 = protocol.load_instrument("flex_8channel_1000", "left")
+    m1000 = protocol.load_instrument("flex_8channel_1000", "right")
 
     def search_tip(channels):
         if remaining_tips != []:
