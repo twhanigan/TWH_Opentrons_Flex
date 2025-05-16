@@ -1,5 +1,5 @@
 from opentrons import protocol_api
-from opentrons.protocol_api import SINGLE, PARTIAL_COLUMN, ALL
+from opentrons.protocol_api import SINGLE, ALL
 from opentrons import types
 
 metadata = {
@@ -32,13 +32,13 @@ def run(protocol: protocol_api.ProtocolContext):
             raise Exception("No tips available")
 
     def pick(channels, pip = p50_multi):
-        if 2 <= channels <=7:
-            pip.configure_nozzle_layout(
-                style=PARTIAL_COLUMN,
-                start= "A1",
-                end = "ABCDEGH"[channels-1]+"1"
-            )
-        elif channels == 8:
+        # if 2 <= channels <=7:
+        #     pip.configure_nozzle_layout(
+        #         style=PARTIAL_COLUMN,
+        #         start= "A1",
+        #         end = "ABCDEGH"[channels-1]+"1"
+        #     )
+        if channels == 8:
             pip.configure_nozzle_layout(
                 style=ALL
             )
