@@ -35,8 +35,8 @@ def run(protocol: protocol_api.ProtocolContext):
         if 2 <= channels <=7:
             pip.configure_nozzle_layout(
                 style=PARTIAL_COLUMN,
-                start= "H1",
-                end = "HGFEDCBA"[channels-1]+"1"
+                start= "A1",
+                end = "ABCDEGH"[channels-1]+"1"
             )
         elif channels == 8:
             pip.configure_nozzle_layout(
@@ -45,7 +45,7 @@ def run(protocol: protocol_api.ProtocolContext):
         elif channels == 1:
             pip.configure_nozzle_layout(
                 style=SINGLE,
-                start="H1"
+                start="A1"
             )
         if available_tips !=[]:
             if len(available_tips[0]) >= channels:
