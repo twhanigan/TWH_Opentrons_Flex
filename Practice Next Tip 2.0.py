@@ -15,8 +15,8 @@ requirements = {
 
 def run(protocol: protocol_api.ProtocolContext):
     chute = protocol.load_waste_chute()
-    partial_50 = protocol.load_labware(load_name="opentrons_flex_96_filtertiprack_50ul",location="A2")
-    
+    partial_50 = protocol.load_labware(load_name="opentrons_flex_96_filtertiprack_50ul",location="B3")
+
     # Load pipettes
     p50_multi = protocol.load_instrument('flex_8channel_50', 'left')
 
