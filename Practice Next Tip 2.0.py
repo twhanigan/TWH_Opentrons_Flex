@@ -56,27 +56,13 @@ def run(protocol: protocol_api.ProtocolContext):
         #         available_tips.pop(0)
         #         pip.pick_up_tip(available_tips[0][channels-1])
         #         available_tips[0] = available_tips[0][channels:]
-        while available_tips:
-            column = available_tips[0]
-            if all(well.has_tip for well in column[:channels]):
-                pip.pick_up_tip(column[0])  # Always pick from top well in column
-                for i in range(channels):
-                    column[i].has_tip = False  # Manually mark as used
-                break
-            else:
-                remaining_tips.append(available_tips.pop(0))
+        for col in available_tips:
+            if all(well.has_tip for well in col):
+                pip.pick_up_tip(col[0])  # Pick from top well of column
+                return
         else:
-            # No available columns left, try remaining ones
-            for column in remaining_tips:
-                if all(well.has_tip for well in column[:channels]):
-                    pip.pick_up_tip(column[0])
-                    for i in range(channels):
-                        column[i].has_tip = False
-                    remaining_tips.remove(column)
-                    break
-            else:
-                tip = search_tip(channels)
-                pip.pick_up_tip(tip)
+            tip = search_tip(channels)
+            pip.pick_up_tip(tip)
 
     available_tips = partial_50.columns()
     remaining_tips = []
