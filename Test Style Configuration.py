@@ -25,7 +25,7 @@ def run(protocol: protocol_api.ProtocolContext):
     p50_multi.pick_up_tip()
     p50_multi.drop_tip()
 
-    p50_multi.configure_nozzle_layout(style=SINGLE, tip_racks=[partial_50])
+    p50_multi.configure_nozzle_layout(style=SINGLE, start="A1", tip_racks=[partial_50])
     p50_multi.pick_up_tip()
     p50_multi.drop_tip()
 
