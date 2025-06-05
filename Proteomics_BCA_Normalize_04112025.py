@@ -8,7 +8,7 @@ import datetime
 import time
 
 metadata = {
-    'protocolName': 'BCA Assay with Normalization and Video Recording',
+    'protocolName': 'BCA Assay with Normalization and Video Recording (Edited)',
     'author': 'Assistant',
     'description': 'Serial dilution of BSA standard and sample processing. This includes cooling samples to 4c, heating plate to 37c with shaking and recording a video of the whole process. Place BSA Standard in A1, Lysis buffer in A2, change the number of samples and place samples in row B starting at B1. MINIMUM Sample volumen in eppendorf tubes is 40 uL. '
 }
@@ -55,12 +55,12 @@ def run(protocol: protocol_api.ProtocolContext):
     
     # Load labware
     tips_50 = protocol.load_labware('opentrons_flex_96_filtertiprack_50ul', 'A4')
-    partial_50 = protocol.load_labware(load_name="opentrons_flex_96_filtertiprack_50ul",location="A3")
-    tips_200 = protocol.load_labware(load_name="opentrons_flex_96_filtertiprack_200ul",location="B3")
+    partial_50 = protocol.load_labware(load_name="opentrons_flex_96_filtertiprack_50ul",location="A2")
+    tips_200 = protocol.load_labware(load_name="opentrons_flex_96_filtertiprack_200ul",location="B4")
     tips_1000 = protocol.load_labware('opentrons_flex_96_filtertiprack_1000ul', 'C4')
-    plate1 = protocol.load_labware('corning_96_wellplate_360ul_flat', 'A2')
-    plate2 = protocol.load_labware('corning_96_wellplate_360ul_flat', 'B2')
-    reservoir = protocol.load_labware('nest_12_reservoir_15ml', 'C2')
+    plate1 = protocol.load_labware('corning_96_wellplate_360ul_flat', 'B2') 
+    plate2 = protocol.load_labware('corning_96_wellplate_360ul_flat', 'D1') #on heatshaker
+    reservoir = protocol.load_labware('nest_12_reservoir_15ml', 'C3')
     
     # Liquid definitions
     bsa_standard = protocol.define_liquid(name = 'BSA Standard', display_color="#704848",)
@@ -95,7 +95,7 @@ def run(protocol: protocol_api.ProtocolContext):
     protocol.move_labware(labware=tips_200, new_location="D4", use_gripper=True)
     protocol.move_labware(labware=partial_50, new_location="B3", use_gripper=True)
 
-    #Step 3: Configure the p50 pipette to use single tip NOTE: this resets the pipettes tip racks!
+    #Step 3: Configure the p50 pipette to use single tip NOTE: this resets the pipettes tip racks! it doesn't
     p50_multi.configure_nozzle_layout(style=SINGLE, start="A1",tip_racks=[partial_50])
 
     # Step 4: Transfer BSA standard (20 mg/ml) to first well of column 1
@@ -163,20 +163,13 @@ def run(protocol: protocol_api.ProtocolContext):
             [plate2[i] for i in destination_wells],
             rate = 0.5)  # Distributing to three consecutive columns
 
-    # Step 8: move the 50uL complete tips to A3
-    protocol.move_labware(labware=tips_50, new_location="A3", use_gripper=True)
-
-    #Step 9: Load the p50 with full tip rack
-    p50_multi.configure_nozzle_layout(style=ALL, tip_racks=[tips_50]) #, 
+    #Step 9: Load the p50 with full tip rack (don't need to)
+    p50_multi.configure_nozzle_layout(style=ALL, tip_racks=[partial_50]) #, 
 
     #Step 10: Pipette triplicate of controls from plate1 column 1 to plate2 columns 1,2,3 
     p50_multi.distribute(10, plate1['A1'], [plate2[f'A{i}'] for i in range(1, 4)])
 
-    # Step 11: move the 50 uL partial tips to C3 and the 200uL complete tips to B3
-    protocol.move_labware(labware=partial_50, new_location="A4", use_gripper=True)
-    protocol.move_labware(labware=tips_1000, new_location="B3", use_gripper=True)
-
-    #Step 12: Load the p1000 with full tip rack
+    #Step 12: Load the p1000 with full tip rack (don't need to)
     p1000_multi.configure_nozzle_layout(style=ALL, tip_racks=[tips_1000]) #,
 
     # Step 13: Add reagent A
@@ -221,10 +214,10 @@ def run(protocol: protocol_api.ProtocolContext):
     protocol.move_labware(labware=plate2, new_location=protocol_api.OFF_DECK)
 
     #Configure the p1000 pipette to use single tip NOTE: this resets the pipettes tip racks!
-    p1000_multi.configure_nozzle_layout(style=SINGLE, start="A1",tip_racks=[tips_1000  ])
+    p1000_multi.configure_nozzle_layout(style=SINGLE, start="A1",tip_racks=[tips_1000])
 
     # Load the new labware
-    plate3 = protocol.load_labware('thermoscientificnunc_96_wellplate_2000ul', location='B2')  # New deep well plate for final samples
+    plate3 = protocol.load_labware('thermoscientificnunc_96_wellplate_2000ul', location='C2')  # New deep well plate for final samples
 
     # Define the directory path
     directory = Path("/var/lib/jupyter/notebooks/TWH/")
