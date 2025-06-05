@@ -54,13 +54,12 @@ def run(protocol: protocol_api.ProtocolContext):
     temp_module.set_temperature(celsius=10)
     
     # Load labware
-    tips_50 = protocol.load_labware('opentrons_flex_96_filtertiprack_50ul', 'A4')
     partial_50 = protocol.load_labware(load_name="opentrons_flex_96_filtertiprack_50ul",location="A2")
     tips_200 = protocol.load_labware(load_name="opentrons_flex_96_filtertiprack_200ul",location="B4")
-    tips_1000 = protocol.load_labware('opentrons_flex_96_filtertiprack_1000ul', 'C4')
+    tips_1000 = protocol.load_labware('opentrons_flex_96_filtertiprack_1000ul', 'A3')
     plate1 = protocol.load_labware('corning_96_wellplate_360ul_flat', 'B2') 
     plate2 = protocol.load_labware('corning_96_wellplate_360ul_flat', 'D1') #on heatshaker
-    reservoir = protocol.load_labware('nest_12_reservoir_15ml', 'C3')
+    reservoir = protocol.load_labware('nest_12_reservoir_15ml', 'C2')
     
     # Liquid definitions
     bsa_standard = protocol.define_liquid(name = 'BSA Standard', display_color="#704848",)
@@ -217,7 +216,7 @@ def run(protocol: protocol_api.ProtocolContext):
     p1000_multi.configure_nozzle_layout(style=SINGLE, start="A1",tip_racks=[tips_1000])
 
     # Load the new labware
-    plate3 = protocol.load_labware('thermoscientificnunc_96_wellplate_2000ul', location='C2')  # New deep well plate for final samples
+    plate3 = protocol.load_labware('thermoscientificnunc_96_wellplate_2000ul', location='B3')  # New deep well plate for final samples
 
     # Define the directory path
     directory = Path("/var/lib/jupyter/notebooks/TWH/")
