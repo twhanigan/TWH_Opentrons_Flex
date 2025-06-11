@@ -397,6 +397,7 @@ def run(protocol: protocol_api.ProtocolContext):
     protocol.delay(minutes=60)
     heater_shaker.deactivate_shaker()
     #heater_shaker.open_labware_latch()
+    
     # ---------------- Desalting ----------------
     protocol.comment("Desalting")
 

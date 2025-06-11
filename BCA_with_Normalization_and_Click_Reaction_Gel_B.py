@@ -8,7 +8,7 @@ import datetime
 import time
 
 metadata = {
-    'protocolName': 'Gel-based Chemical Proteomics',
+    'protocolName': 'BCA Assay with Normalization and Video Recording (Edited) w/ Click Reaction',
     'author': 'Assistant',
     'description': 'Serial dilution of BSA standard and sample processing. This includes cooling samples to 4c, heating plate to 37c with shaking and recording a video of the whole process. Place BSA Standard in A1, Lysis buffer in A2, change the number of samples and place samples in row B starting at B1. MINIMUM Sample volumen in eppendorf tubes is 40 uL. '
 }
@@ -29,7 +29,7 @@ def run(protocol: protocol_api.ProtocolContext):
     num_samples = 10 # change this to the number of samples you need to run. The maximum is 18.
     num_rows = 8  # A-H
     num_replicates = 3  # the number of replicates
-    speed= 0.25 #Speed of pipetting NP40 lysis buffer=0.35, 2M Urea in EPPS=0.3
+    speed= 0.35 #Speed of pipetting NP40 lysis buffer=0.35, 2M Urea in EPPS=0.3
 
     #Start recording the video
     video_output_file = 'BCA_Assay_012425.mp4'
@@ -43,14 +43,12 @@ def run(protocol: protocol_api.ProtocolContext):
     temp_module = protocol.load_module('temperature module gen2', 'C1')
     mag_block = protocol.load_module('magneticBlockV1', 'D2')
     chute = protocol.load_waste_chute()
-
+    heater_shaker.open_labware_latch()
+    
     # Load adapters
     #hs_adapter = heater_shaker.load_adapter('opentrons_96_flat_bottom_adapter')
     hs_adapter = heater_shaker.load_adapter('opentrons_universal_flat_adapter')
     temp_adapter = temp_module.load_labware('opentrons_24_aluminumblock_nest_1.5ml_screwcap')
-
-    #set the heater_shaker temp to 60C
-    heater_shaker.open_labware_latch()
 
     #set the temp module to 0c
     temp_module.set_temperature(celsius=10)
@@ -60,10 +58,15 @@ def run(protocol: protocol_api.ProtocolContext):
     tips_200 = protocol.load_labware(load_name="opentrons_flex_96_filtertiprack_200ul",location="B3")
     tips_1000 = protocol.load_labware('opentrons_flex_96_filtertiprack_1000ul', 'A3')
     plate1 = protocol.load_labware('corning_96_wellplate_360ul_flat', 'B2') 
-    plate2 = protocol.load_labware('corning_96_wellplate_360ul_flat', location='C2') #on heatshaker
-    reservoir = protocol.load_labware('nest_12_reservoir_15ml', 'C3')
-    
-    # Liquid definitions
+    plate2 = protocol.load_labware('corning_96_wellplate_360ul_flat', location=protocol_api.OFF_DECK) #on heatshaker
+    #plate2 = protocol.load_labware('corning_96_wellplate_360ul_flat', location='A2) #on heatshaker
+    protocol.move_labware(labware=plate2, new_location=hs_adapter) #on heatshaker
+    reservoir = protocol.load_labware('nest_12_reservoir_15ml', 'C2')
+        
+    #set the heater_shaker temp to 60C
+    heater_shaker.close_labware_latch()
+
+    # Liquid definitionss
     bsa_standard = protocol.define_liquid(name = 'BSA Standard', display_color="#704848",)
     bsa_reag_a = protocol.define_liquid(name = 'Reagent A', display_color="#704300",)
     bsa_reag_b = protocol.define_liquid(name = 'Reagent B', display_color="#704900",)
@@ -73,7 +76,7 @@ def run(protocol: protocol_api.ProtocolContext):
     rhodamine_azide = protocol.define_liquid(name = 'rhodamine_azide', display_color="#704300",)
     tcep_click = protocol.define_liquid(name = 'tcep_click', display_color="#704900",)
     tbta = protocol.define_liquid(name = 'tbta', display_color="#701100",)
-    loading_buffer = protocol.define_liquid(name = 'Loading Buffer', display_color="#4169E1",)
+    
     sample_liquids = [protocol.define_liquid(name = f'Sample {i + 1}', display_color="#FFA000",) for i in range(num_samples)]
 
     # Reservoir assignments for washes and digestion
@@ -81,9 +84,7 @@ def run(protocol: protocol_api.ProtocolContext):
     reservoir['A3'].load_liquid(liquid=bsa_reag_b, volume=20000)  
     reservoir['A5'].load_liquid(liquid=bsa_reag_c, volume=20000)  
     reservoir['A7'].load_liquid(liquid=excess_lysis, volume=15000) 
-    reservoir['A9'].load_liquid(liquid=loading_buffer, volume=1000)  
 
-    temp_adapter['A1'].load_liquid(liquid=bsa_standard, volume = 1500)
     temp_adapter['D1'].load_liquid(liquid=copper_sulfate, volume=1500) #click
     temp_adapter['D2'].load_liquid(liquid=rhodamine_azide, volume=1500) #click
     temp_adapter['D3'].load_liquid(liquid=tcep_click, volume=1500) #click
@@ -100,8 +101,7 @@ def run(protocol: protocol_api.ProtocolContext):
     p1000_multi.distribute(50, 
          reservoir['A7'],
          plate1['A1'],
-         rate = speed,
-         mix_before=(1, 50),
+         rate = 0.35,
          delay = 2,
          new_tip='once')
 
@@ -158,7 +158,7 @@ def run(protocol: protocol_api.ProtocolContext):
     # Create a dynamic sample map based on the assigned sample locations
     sample_map = list(map(lambda i,j :(i,j), rows, sample_locations))
 
-# Iterate over the sample_map list
+    # Iterate over the sample_map list
     for index, (row, tube) in enumerate(sample_map):
         if index < 8:
             base_column = 4 + (index // 8)  # This will determine the starting column for each row
@@ -184,7 +184,7 @@ def run(protocol: protocol_api.ProtocolContext):
     #Step 10: Pipette triplicate of controls from plate1 column 1 to plate2 columns 1,2,3 
     p50_multi.distribute(5, 
                         plate1['A1'], 
-                        [plate2[f'A{i}'].bottom(z=0.1) for i in range(1, 4)],
+                        [plate2[f'A{i}'].bottom(z=10) for i in range(1, 4)],
                         rate= speed,
                         mix_before=(1, 10),
                         disposal_vol=5)
@@ -216,8 +216,8 @@ def run(protocol: protocol_api.ProtocolContext):
                         disposal_vol=5)
 
     #Step 16: move plate 2 to the heater shaker and incubate at 37c
-    protocol.move_labware(labware=plate2, new_location=hs_adapter, use_gripper=True)
     heater_shaker.set_and_wait_for_temperature(50)
+    #protocol.move_labware(labware=plate2, new_location=hs_adapter,use_gripper=True)
     heater_shaker.close_labware_latch()
     heater_shaker.set_and_wait_for_shake_speed(500)
     protocol.delay(minutes=5)
@@ -331,7 +331,6 @@ def run(protocol: protocol_api.ProtocolContext):
 
     # ---------------- Click Reaction ----------------
     protocol.comment("Running click reaction")
-    p50_multi.configure_nozzle_layout(style=SINGLE, start="A1", tip_racks=[partial_50]) #,
     
     #Pipette biotin, tbta, cuso4, and tcep
     p50_multi.distribute(22, temp_adapter['D2'], temp_adapter['A5'], new_tip='always')
@@ -347,9 +346,5 @@ def run(protocol: protocol_api.ProtocolContext):
     heater_shaker.set_and_wait_for_shake_speed(400)
     protocol.delay(minutes=60)
     heater_shaker.deactivate_shaker()
-
-    # Add the loading buffer.
-    p50_multi.configure_nozzle_layout(style=ALL, tip_racks=[partial_50]) #,
-    p50_multi.distribute(34, reservoir['A9'], plate3[destination_wells], mix_after=(3, 40), new_tip='always')
     heater_shaker.open_labware_latch()
     #heater_shaker.open_labware_latch()
