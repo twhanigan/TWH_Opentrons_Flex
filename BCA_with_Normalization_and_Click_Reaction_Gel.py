@@ -229,7 +229,7 @@ def run(protocol: protocol_api.ProtocolContext):
 
     #######################################################################################
     # Tell the user to load BCA assay data
-    protocol.comment("Place BCA assay absorbance data in /var/lib/jupyter/notebooks/TWH, load new deep well plate into flex B2 (where BCA plate was), and new tube rack into A2 (with excess lysis buffer in A1 and empty falcon in A2)")
+    protocol.comment("Place BCA assay absorbance data in /var/lib/jupyter/notebooks/Data, load new deep well plate into flex B2 (where BCA plate was), and new tube rack into A2 (with excess lysis buffer in A1 and empty falcon in A2)")
 
     # Pause the protocol until the user loads the file to /var/lib/jupyter/notebooks
     protocol.pause()
@@ -245,7 +245,7 @@ def run(protocol: protocol_api.ProtocolContext):
     plate3 = protocol.load_labware('thermoscientificnunc_96_wellplate_2000ul', location='B2')  # New deep well plate for final samples
 
     # Define the directory path
-    directory = Path("/var/lib/jupyter/notebooks/TWH/")
+    directory = Path("/var/lib/jupyter/notebooks/Data/")
 
     # Get today's date in YYMMDD format
     today_date = datetime.date.today().strftime("%y%m%d")
