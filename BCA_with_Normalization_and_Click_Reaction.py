@@ -349,7 +349,7 @@ def run(protocol: protocol_api.ProtocolContext):
     heater_shaker.deactivate_shaker()
 
     # Add the loading buffer.
-    p50_multi.configure_nozzle_layout(style=ALL, tip_racks=[partial_50]) #,
+    p50_multi.configure_nozzle_layout(style=ALL, tip_racks=[partial_50])
     p50_multi.distribute(34, reservoir['A9'], plate3[destination_wells], mix_after=(3, 40), new_tip='always')
     heater_shaker.open_labware_latch()
     #heater_shaker.open_labware_latch()
