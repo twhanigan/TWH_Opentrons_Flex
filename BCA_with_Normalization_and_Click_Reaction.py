@@ -57,8 +57,8 @@ def run(protocol: protocol_api.ProtocolContext):
     
     # Load labware
     partial_50 = protocol.load_labware(load_name="opentrons_flex_96_filtertiprack_50ul",location="A2")
-    tips_200 = protocol.load_labware(load_name="opentrons_flex_96_filtertiprack_200ul",location="A3")
-    tips_1000 = protocol.load_labware('opentrons_flex_96_filtertiprack_1000ul', 'B3')
+    tips_200 = protocol.load_labware(load_name="opentrons_flex_96_filtertiprack_200ul",location="B3")
+    tips_1000 = protocol.load_labware('opentrons_flex_96_filtertiprack_1000ul', 'A3')
     plate1 = protocol.load_labware('corning_96_wellplate_360ul_flat', 'B2') 
     plate2 = protocol.load_labware('corning_96_wellplate_360ul_flat', location='C2') #on heatshaker
     plate3 = protocol.load_labware('thermoscientificnunc_96_wellplate_2000ul', location='A4')  # New deep well plate for final samples
@@ -244,7 +244,7 @@ def run(protocol: protocol_api.ProtocolContext):
     protocol.move_labware(labware=plate3, new_location="B2", use_gripper=True)
 
     #Configure the p1000 pipette to use single tip NOTE: this resets the pipettes tip racks!
-    p1000_multi.configure_nozzle_layout(style=SINGLE, start="A1",tip_racks=[tips_1000])
+    p1000_multi.configure_nozzle_layout(style=SINGLE, start="A1",tip_racks=[tips_200])
 
     # Define the directory path
     directory = Path("/var/lib/jupyter/notebooks/Data/")
