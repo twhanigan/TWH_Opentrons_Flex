@@ -345,7 +345,7 @@ def run(protocol: protocol_api.ProtocolContext):
     p50_multi.distribute(12, temp_adapter['A5'], [plate3[i] for i in destination_wells], new_tip='always')
 
     # Step 11: shake the sample plate for click reaction
-    protocol.move_labware(labware=plate3, new_location=heater_shaker, use_gripper=True)
+    protocol.move_labware(labware=plate3, new_location=hs_adapter, use_gripper=True)
     heater_shaker.close_labware_latch()
     heater_shaker.set_and_wait_for_shake_speed(400)
     protocol.delay(minutes=60)
