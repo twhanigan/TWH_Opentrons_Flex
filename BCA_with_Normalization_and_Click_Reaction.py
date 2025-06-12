@@ -238,8 +238,8 @@ def run(protocol: protocol_api.ProtocolContext):
     # Tell the robot that new labware will be placed onto the deck
     protocol.move_labware(labware=plate1, new_location=protocol_api.OFF_DECK)
     protocol.move_labware(labware=plate2, new_location=protocol_api.OFF_DECK)
-    
-    #Move reservoir to new deck slot & plate3
+
+    #Move reservoir & plate3 to new deck slot
     protocol.move_labware(labware=reservoir, new_location="C2", use_gripper=True)
     protocol.move_labware(labware=plate3, new_location="B2", use_gripper=True)
 
