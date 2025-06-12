@@ -57,8 +57,8 @@ def run(protocol: protocol_api.ProtocolContext):
     
     # Load labware
     partial_50 = protocol.load_labware(load_name="opentrons_flex_96_filtertiprack_50ul",location="A2")
-    tips_200 = protocol.load_labware(load_name="opentrons_flex_96_filtertiprack_200ul",location="B3")
-    tips_1000 = protocol.load_labware('opentrons_flex_96_filtertiprack_1000ul', 'A3')
+    tips_200 = protocol.load_labware(load_name="opentrons_flex_96_filtertiprack_200ul",location="A3")
+    tips_1000 = protocol.load_labware('opentrons_flex_96_filtertiprack_1000ul', 'B3')
     plate1 = protocol.load_labware('corning_96_wellplate_360ul_flat', 'B2') 
     plate2 = protocol.load_labware('corning_96_wellplate_360ul_flat', location='C2') #on heatshaker
     reservoir = protocol.load_labware('nest_12_reservoir_15ml', 'C3')
