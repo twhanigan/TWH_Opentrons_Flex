@@ -8,7 +8,7 @@ import datetime
 import time
 
 metadata = {
-    'protocolName': 'Gel-based Chemical Proteomics 06132025',
+    'protocolName': 'Gel-based Chemical Proteomics Click Reaction Only 06132025',
     'author': 'Assistant',
     'description': 'Serial dilution of BSA standard and sample processing. This includes cooling samples to 4c, heating plate to 37c with shaking and recording a video of the whole process. Place BSA Standard in A1, Lysis buffer in A2, change the number of samples and place samples in row B starting at B1. MINIMUM Sample volumen in eppendorf tubes is 40 uL. '
 }
@@ -187,14 +187,14 @@ def run(protocol: protocol_api.ProtocolContext):
     p50_multi.configure_nozzle_layout(style=SINGLE, start="A1", tip_racks=[partial_50]) #,
     
     #Pipette rhodamine azide (d2), tbta (d4), cuso4 (d1), and tcep (d3)
-    p50_multi.distribute(1*(num_samples*1.5), 
+    p50_multi.transfer(1*(num_samples*1.5), 
                             temp_adapter['D2'], 
                             temp_adapter['D6'],
                             rate=speed,
                             mix_before=(1,10), 
                             new_tip='always')
 
-    p50_multi.distribute(6*(num_samples*1.5), 
+    p50_multi.transfer(6*(num_samples*1.5), 
                             temp_adapter['D4'], 
                             temp_adapter['D6'],
                             mix_before=(1,10),
@@ -202,12 +202,12 @@ def run(protocol: protocol_api.ProtocolContext):
                             delay=3, 
                             new_tip='always')
 
-    p50_multi.distribute(2*(num_samples*1.5), 
+    p50_multi.transfer(2*(num_samples*1.5), 
                             temp_adapter['D1'], 
                             temp_adapter['D6'], 
                             new_tip='always')
 
-    p50_multi.distribute(2*(num_samples*1.5), 
+    p50_multi.transfer(2*(num_samples*1.5), 
                             temp_adapter['D3'], 
                             temp_adapter['D6'], 
                             new_tip='always')
