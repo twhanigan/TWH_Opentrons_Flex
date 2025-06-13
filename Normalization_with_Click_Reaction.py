@@ -190,14 +190,14 @@ def run(protocol: protocol_api.ProtocolContext):
     #Pipette rhodamine azide (d2), tbta (d4), cuso4 (d1), and tcep (d3)
     p50_multi.distribute(1*(num_samples*1.5), 
                             temp_adapter['D2'], 
-                            temp_adapter['A5'],
+                            temp_adapter['D6'],
                             rate=speed,
                             mix_before=(1,10), 
                             new_tip='always')
 
     p50_multi.distribute(6*(num_samples*1.5), 
                             temp_adapter['D4'], 
-                            temp_adapter['A5'],
+                            temp_adapter['D6'],
                             mix_before=(1,10),
                             rate=speed,
                             delay=3, 
@@ -205,17 +205,17 @@ def run(protocol: protocol_api.ProtocolContext):
 
     p50_multi.distribute(2*(num_samples*1.5), 
                             temp_adapter['D1'], 
-                            temp_adapter['A5'], 
+                            temp_adapter['D6'], 
                             new_tip='always')
 
     p50_multi.distribute(2*(num_samples*1.5), 
                             temp_adapter['D3'], 
-                            temp_adapter['A5'], 
+                            temp_adapter['D6'], 
                             new_tip='always')
     
     # Pipette the click reaction premix
     p50_multi.distribute(6, 
-                            temp_adapter['A5'], 
+                            temp_adapter['D6'], 
                             [plate3[i] for i in destination_wells],
                             rate=speed,
                             mix_before=(3, 30),
