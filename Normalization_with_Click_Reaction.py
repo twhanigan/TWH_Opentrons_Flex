@@ -184,7 +184,6 @@ def run(protocol: protocol_api.ProtocolContext):
 
     # ---------------- Click Reaction ----------------
     protocol.comment("Running click reaction")
-    protocol.move_labware(labware=partial_50, new_location='B3', use_gripper=True)
     p50_multi.configure_nozzle_layout(style=SINGLE, start="A1", tip_racks=[partial_50]) #,
     
     #Pipette rhodamine azide (d2), tbta (d4), cuso4 (d1), and tcep (d3)
