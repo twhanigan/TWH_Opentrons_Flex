@@ -192,7 +192,7 @@ def run(protocol: protocol_api.ProtocolContext):
                             temp_adapter['D6'],
                             rate=speed,
                             mix_before=(1,10), 
-                            new_tip='always')
+                            new_tip='once')
 
     p50_multi.transfer(6*(num_samples*1.5), 
                             temp_adapter['D4'], 
@@ -200,17 +200,17 @@ def run(protocol: protocol_api.ProtocolContext):
                             mix_before=(1,10),
                             rate=speed,
                             delay=3, 
-                            new_tip='always')
+                            new_tip='once')
 
     p50_multi.transfer(2*(num_samples*1.5), 
                             temp_adapter['D1'], 
                             temp_adapter['D6'], 
-                            new_tip='always')
+                            new_tip='once')
 
     p50_multi.transfer(2*(num_samples*1.5), 
                             temp_adapter['D3'], 
                             temp_adapter['D6'], 
-                            new_tip='always')
+                            new_tip='once')
     
     # Pipette the click reaction premix
     p50_multi.distribute(6, 
