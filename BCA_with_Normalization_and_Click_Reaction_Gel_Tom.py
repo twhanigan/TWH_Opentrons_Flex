@@ -362,9 +362,12 @@ def run(protocol: protocol_api.ProtocolContext):
                             mix_before=(3, 30),
                             mix_after=(3, 30), 
                             new_tip='always')
+    #trick heater_shaker into using 96-well plates
+    protocol.move_labware(labware=hs_adapter, new_location=protocol_api.OFF_DECK, use_gripper=False)
+    plate_adapter = heater_shaker.load_adapter('opentrons_96_pcr_adapter') #opentrons_96_flat_bottom_adapter
 
     # Step 11: shake the sample plate for click reaction
-    protocol.move_labware(labware=plate3, new_location=hs_adapter, use_gripper=True)
+    protocol.move_labware(labware=plate3, new_location=plate_adapter, use_gripper=True)
     heater_shaker.close_labware_latch()
     heater_shaker.set_and_wait_for_shake_speed(400)
     protocol.delay(minutes=60)
