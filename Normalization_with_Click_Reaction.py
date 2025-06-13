@@ -216,7 +216,7 @@ def run(protocol: protocol_api.ProtocolContext):
     p50_multi.distribute(6, 
                             temp_adapter['D6'], 
                             [plate3[i] for i in destination_wells],
-                            rate=speed,
+                            rate=speed-0.05,
                             mix_before=(3, 30),
                             mix_after=(3, 30), 
                             new_tip='always')
