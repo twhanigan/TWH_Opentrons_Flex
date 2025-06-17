@@ -8,7 +8,7 @@ import datetime
 import time
 
 metadata = {
-    'protocolName': 'Gel-based Chemical Proteomics 06132025',
+    'protocolName': 'Gel-based Chemical Proteomics 06162025',
     'author': 'Assistant',
     'description': 'Serial dilution of BSA standard and sample processing. This includes cooling samples to 4c, heating plate to 37c with shaking and recording a video of the whole process. Place BSA Standard in A1, Lysis buffer in A2, change the number of samples and place samples in row B starting at B1. MINIMUM Sample volumen in eppendorf tubes is 40 uL. '
 }
@@ -329,41 +329,42 @@ def run(protocol: protocol_api.ProtocolContext):
     p50_multi.configure_nozzle_layout(style=SINGLE, start="A1", tip_racks=[partial_50]) #,
     
     #Pipette rhodamine azide (d2), tbta (d4), cuso4 (d1), and tcep (d3)
-    p50_multi.distribute(1*(num_samples*1.5), 
+    p50_multi.transfer(1*(num_samples*1.5), 
                             temp_adapter['D2'], 
-                            temp_adapter['A5'],
+                            temp_adapter['D6'],
                             rate=speed,
                             mix_before=(1,10), 
-                            new_tip='always')
+                            new_tip='once')
 
-    p50_multi.distribute(6*(num_samples*1.5), 
+    p50_multi.transfer(6*(num_samples*1.5), 
                             temp_adapter['D4'], 
-                            temp_adapter['A5'],
+                            temp_adapter['D6'],
                             mix_before=(1,10),
                             rate=speed,
                             delay=3, 
-                            new_tip='always')
+                            new_tip='once')
 
-    p50_multi.distribute(2*(num_samples*1.5), 
+    p50_multi.transfer(2*(num_samples*1.5), 
                             temp_adapter['D1'], 
-                            temp_adapter['A5'], 
-                            new_tip='always')
+                            temp_adapter['D6'], 
+                            new_tip='once')
 
-    p50_multi.distribute(2*(num_samples*1.5), 
-                            temp_adapter['D3'], 
+    p50_multi.transfer(2*(num_samples*1.5), 
+                            temp_adapter['D6'], 
                             temp_adapter['A5'], 
-                            new_tip='always')
+                            new_tip='once')
     
     # Pipette the click reaction premix
     p50_multi.distribute(6, 
-                            temp_adapter['A5'], 
+                            temp_adapter['D6'], 
                             [plate3[i] for i in destination_wells],
-                            rate=speed,
+                            rate=speed-0.1,
                             mix_before=(3, 30),
                             mix_after=(3, 30), 
                             new_tip='always')
     #trick heater_shaker into using 96-well plates
-    protocol.move_labware(labware=hs_adapter, new_location=protocol_api.OFF_DECK, use_gripper=False)
+    #protocol.move_labware(labware=hs_adapter, new_location=protocol_api.OFF_DECK, use_gripper=False)
+    del hs_adapter
     plate_adapter = heater_shaker.load_adapter('opentrons_96_pcr_adapter') #opentrons_96_flat_bottom_adapter
 
     # Step 11: shake the sample plate for click reaction
@@ -377,8 +378,8 @@ def run(protocol: protocol_api.ProtocolContext):
     p50_multi.configure_nozzle_layout(style=ALL, tip_racks=[partial_50])
     p50_multi.distribute(34, 
                             reservoir['A9'], 
-                            plate3[destination_wells], 
-                            mix_after=(3, 40), 
+                            [plate3[i].bottom(z=7) for i in destination_wells], 
+                            #mix_after=(3, 40), 
                             new_tip='always')
 
     heater_shaker.open_labware_latch()
