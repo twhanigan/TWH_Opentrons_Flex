@@ -358,15 +358,20 @@ def run(protocol: protocol_api.ProtocolContext):
     p50_multi.distribute(6, 
                             temp_adapter['D6'], 
                             [plate3[i] for i in destination_wells],
-                            rate=speed-0.05,
+                            rate=speed-0.1,
                             mix_before=(3, 30),
                             mix_after=(3, 30), 
                             new_tip='always')
 
+    #trick heater_shaker into using 96-well plates
+    #protocol.move_labware(labware=hs_adapter, new_location=protocol_api.OFF_DECK, use_gripper=False)
+    del hs_adapter
+    plate_adapter = heater_shaker.load_adapter('opentrons_96_pcr_adapter') #opentrons_96_flat_bottom_adapter
+
     # Step 11: shake the sample plate for click reaction
-    protocol.move_labware(labware=plate3, new_location=hs_adapter, use_gripper=True)
+    protocol.move_labware(labware=plate3, new_location=plate_adapter, use_gripper=True)
     heater_shaker.close_labware_latch()
-    heater_shaker.set_and_wait_for_shake_speed(400)
+    heater_shaker.set_and_wait_for_shake_speed(1000)
     protocol.delay(minutes=60)
     heater_shaker.deactivate_shaker()
 
@@ -374,8 +379,8 @@ def run(protocol: protocol_api.ProtocolContext):
     p50_multi.configure_nozzle_layout(style=ALL, tip_racks=[partial_50])
     p50_multi.distribute(34, 
                             reservoir['A9'], 
-                            plate3[destination_wells], 
-                            mix_after=(3, 40), 
+                            [plate3[i].bottom(z=7) for i in destination_wells], 
+                            #mix_after=(3, 40), 
                             new_tip='always')
 
     heater_shaker.open_labware_latch()
