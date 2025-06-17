@@ -41,7 +41,7 @@ def run(protocol: protocol_api.ProtocolContext):
     chute = protocol.load_waste_chute()
 
     # Load adapters
-    hs_adapter = heater_shaker.load_adapter('opentrons_universal_flat_adapter')
+    #hs_adapter = heater_shaker.load_adapter('opentrons_universal_flat_adapter')
     temp_adapter = temp_module.load_labware('opentrons_24_aluminumblock_nest_1.5ml_screwcap')
 
     #set the heater_shaker temp to 60C
@@ -210,7 +210,7 @@ def run(protocol: protocol_api.ProtocolContext):
                         disposal_vol=5)
 
     #Step 16: move plate 2 to the heater shaker and incubate at 37c
-    protocol.move_labware(labware=plate2, new_location=hs_adapter, use_gripper=True)
+    protocol.move_labware(labware=plate2, new_location=heater_shaker, use_gripper=True)
     heater_shaker.set_and_wait_for_temperature(50)
     heater_shaker.close_labware_latch()
     heater_shaker.set_and_wait_for_shake_speed(500)
@@ -233,6 +233,11 @@ def run(protocol: protocol_api.ProtocolContext):
     protocol.move_labware(labware=plate2, new_location=protocol_api.OFF_DECK)
     protocol.move_labware(labware=plate3, new_location="B2", use_gripper=True)
     protocol.move_labware(labware=partial_50, new_location='B4', use_gripper=True)
+    #trick heater_shaker into using 96-well plates
+    protocol.move_labware(labware=hs_adapter, new_location=protocol_api.OFF_DECK, use_gripper=False)
+    del protocol.deck['D1']
+    plate_adapter = heater_shaker.load_adapter('opentrons_96_pcr_adapter') #opentrons_96_flat_bottom_adapter
+
 
     #Configure the p1000 pipette to use single tip NOTE: this resets the pipettes tip racks!
     p1000_multi.configure_nozzle_layout(style=SINGLE, start="A1",tip_racks=[tips_200])
@@ -363,8 +368,7 @@ def run(protocol: protocol_api.ProtocolContext):
                             mix_after=(3, 30), 
                             new_tip='always')
     #trick heater_shaker into using 96-well plates
-    #protocol.move_labware(labware=hs_adapter, new_location=protocol_api.OFF_DECK, use_gripper=False)
-    del hs_adapter
+    protocol.move_labware(labware=hs_adapter, new_location=protocol_api.OFF_DECK, use_gripper=False)
     plate_adapter = heater_shaker.load_adapter('opentrons_96_pcr_adapter') #opentrons_96_flat_bottom_adapter
 
     # Step 11: shake the sample plate for click reaction

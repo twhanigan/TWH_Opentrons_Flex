@@ -43,7 +43,8 @@ def run(protocol: protocol_api.ProtocolContext):
     chute = protocol.load_waste_chute()
 
     # Load adapters
-    hs_adapter = heater_shaker.load_adapter('opentrons_universal_flat_adapter')
+    #hs_adapter = heater_shaker.load_adapter('opentrons_universal_flat_adapter')
+    hs_plate = heater_shaker.load_labware('corning_96_wellplate_360ul_flat')
     temp_adapter = temp_module.load_labware('opentrons_24_aluminumblock_nest_1.5ml_screwcap')
     epp_rack = protocol.load_labware('opentrons_24_tuberack_eppendorf_1.5ml_safelock_snapcap', location=protocol_api.OFF_DECK)
 
