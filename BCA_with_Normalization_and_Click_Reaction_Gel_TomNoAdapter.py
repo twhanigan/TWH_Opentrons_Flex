@@ -367,12 +367,12 @@ def run(protocol: protocol_api.ProtocolContext):
     protocol.move_labware(labware=plate3, new_location=heater_shaker, use_gripper=True)
     heater_shaker.close_labware_latch()
     heater_shaker.set_and_wait_for_shake_speed(1000)
-    protocol.delay(minutes=60)
+    protocol.delay(minutes=90)
     heater_shaker.deactivate_shaker()
 
     # Add the loading buffer and move to the thermocylcer to seal and store.
     p50_multi.configure_nozzle_layout(style=ALL, tip_racks=[partial_50])
-    p50_multi.distribute(34, 
+    p50_multi.distribute(50, 
                             reservoir['A9'], 
                             [plate3[i].bottom(z=7) for i in destination_wells], 
                             #mix_after=(3, 40), 
