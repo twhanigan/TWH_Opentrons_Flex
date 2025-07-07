@@ -8,7 +8,7 @@ import datetime
 import time
 
 metadata = {
-    'protocolName': 'Gel-based Chemical Proteomics 06162025',
+    'protocolName': 'Gel-based Chemical Proteomics 06272025',
     'author': 'Assistant',
     'description': 'Serial dilution of BSA standard and sample processing. This includes cooling samples to 4c, heating plate to 37c with shaking and recording a video of the whole process. Place BSA Standard in A1, Lysis buffer in A2, change the number of samples and place samples in row B starting at B1. MINIMUM Sample volumen in eppendorf tubes is 40 uL. '
 }
@@ -41,7 +41,7 @@ def run(protocol: protocol_api.ProtocolContext):
     chute = protocol.load_waste_chute()
 
     # Load adapters
-    hs_adapter = heater_shaker.load_adapter('opentrons_universal_flat_adapter')
+    #hs_adapter = heater_shaker.load_adapter('opentrons_universal_flat_adapter')
     temp_adapter = temp_module.load_labware('opentrons_24_aluminumblock_nest_1.5ml_screwcap')
 
     #set the heater_shaker temp to 60C
@@ -210,7 +210,7 @@ def run(protocol: protocol_api.ProtocolContext):
                         disposal_vol=5)
 
     #Step 16: move plate 2 to the heater shaker and incubate at 37c
-    protocol.move_labware(labware=plate2, new_location=hs_adapter, use_gripper=True)
+    protocol.move_labware(labware=plate2, new_location=heater_shaker, use_gripper=True)
     heater_shaker.set_and_wait_for_temperature(50)
     heater_shaker.close_labware_latch()
     heater_shaker.set_and_wait_for_shake_speed(500)
@@ -229,15 +229,10 @@ def run(protocol: protocol_api.ProtocolContext):
     protocol.pause()
 
     # Tell the robot that new labware will be placed onto the deck
-    protocol.move_labware(labware=plate1, new_location=protocol_api.OFF_DECK)
-    protocol.move_labware(labware=plate2, new_location=protocol_api.OFF_DECK)
+    protocol.move_labware(labware=plate1, new_location='D4')
+    protocol.move_labware(labware=plate2, new_location='A2')
     protocol.move_labware(labware=plate3, new_location="B2", use_gripper=True)
     protocol.move_labware(labware=partial_50, new_location='B4', use_gripper=True)
-    #trick heater_shaker into using 96-well plates
-    protocol.move_labware(labware=hs_adapter, new_location=protocol_api.OFF_DECK, use_gripper=False)
-    del protocol.deck['D1']
-    plate_adapter = heater_shaker.load_adapter('opentrons_96_pcr_adapter') #opentrons_96_flat_bottom_adapter
-
 
     #Configure the p1000 pipette to use single tip NOTE: this resets the pipettes tip racks!
     p1000_multi.configure_nozzle_layout(style=SINGLE, start="A1",tip_racks=[tips_200])
@@ -367,20 +362,17 @@ def run(protocol: protocol_api.ProtocolContext):
                             mix_before=(3, 30),
                             mix_after=(3, 30), 
                             new_tip='always')
-    #trick heater_shaker into using 96-well plates
-    protocol.move_labware(labware=hs_adapter, new_location=protocol_api.OFF_DECK, use_gripper=False)
-    plate_adapter = heater_shaker.load_adapter('opentrons_96_pcr_adapter') #opentrons_96_flat_bottom_adapter
 
     # Step 11: shake the sample plate for click reaction
-    protocol.move_labware(labware=plate3, new_location=plate_adapter, use_gripper=True)
+    protocol.move_labware(labware=plate3, new_location=heater_shaker, use_gripper=True)
     heater_shaker.close_labware_latch()
     heater_shaker.set_and_wait_for_shake_speed(1000)
-    protocol.delay(minutes=60)
+    protocol.delay(minutes=90)
     heater_shaker.deactivate_shaker()
 
     # Add the loading buffer and move to the thermocylcer to seal and store.
     p50_multi.configure_nozzle_layout(style=ALL, tip_racks=[partial_50])
-    p50_multi.distribute(34, 
+    p50_multi.distribute(50, 
                             reservoir['A9'], 
                             [plate3[i].bottom(z=7) for i in destination_wells], 
                             #mix_after=(3, 40), 
