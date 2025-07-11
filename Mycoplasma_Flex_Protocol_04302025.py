@@ -18,8 +18,8 @@ def run(protocol: protocol_api.ProtocolContext):
     # Enter the number of samples 
     speed= 0.5
     target_concentration = 1
-    num_samples = 6 
-    num_replicates = 2
+    num_samples = 10
+    num_replicates = 1
     
     # Step 4: Gel preparation and loading (manual step for now)
     protocol.comment("This protcol runs pcr assay for mycoplasma contamination.")
