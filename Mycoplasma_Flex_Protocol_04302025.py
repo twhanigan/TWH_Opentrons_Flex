@@ -3,7 +3,7 @@ from opentrons.protocol_api import SINGLE, ALL
 import subprocess
 
 metadata = {
-    'protocolName': 'Mycoplasma Detection PCR Protocol',
+    'protocolName': 'Mycoplasma Detection PCR Protocol Tube-based',
     'author': 'Assistant',
     'description': 'Automated PCR setup and gel preparation for Mycoplasma detection.',
 }
@@ -18,9 +18,14 @@ def run(protocol: protocol_api.ProtocolContext):
     # Enter the number of samples 
     speed= 0.5
     target_concentration = 1
-    num_samples = 6 
+    num_samples = 1
     num_replicates = 2
-    
+    numtotalSamples = num_samples + (2*num_replicates)
+    reaction_vol = 25
+    mastermix_vol = 12.5
+    primer_vol = 1
+    sample_vol = 2.5
+    water_vol = 9
     # Step 4: Gel preparation and loading (manual step for now)
     protocol.comment("This protcol runs pcr assay for mycoplasma contamination.")
     
@@ -50,6 +55,7 @@ def run(protocol: protocol_api.ProtocolContext):
     neg_control = protocol.define_liquid(name = 'neg_control', display_color="#FF5E00")
     empty_epp = protocol.define_liquid(name = 'neg_control', display_color="#000011")
     loading_buff = protocol.define_liquid(name = 'loading_buff', display_color="#220011")
+    sample_tubes = protocol.define_liquid(name=samples, display_color= "#230442")
 
     # Assign sample/liquid positions
     temp_adapter['A1'].load_liquid(liquid=mastermix, volume=1000)  # 20 mg/ml BSA standard
@@ -85,77 +91,102 @@ def run(protocol: protocol_api.ProtocolContext):
             sample_locations.append(f'A{i - 16}')  # Stop if we exceed the number of available rows/columns
         else:
             print('Too many samples')
-
-    #Add the positive control and no template control to the number of samples
-    numtotalSamples = num_samples + 2
+    
+    # define row letters in order
     samples = [temp_adapter[i] for i in sample_locations]
-    reaction_vol = 25
-    mastermix_vol = 12.5
-    primer_vol = 1
-    sample_vol = 2.5
-    water_vol = 9
+    row_letters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
+    num_rows = len(row_letters)
+    num_columns = 12
 
-    # Step 1: Distribute mastermix and primer mix into PCR plate starting at row B1:
-    p1000_multi.distribute((mastermix_vol*numtotalSamples*num_replicates*2), 
-                            temp_adapter['A1'].bottom(z=2), 
-                            reservoir['A1'], 
-                            new_tip='once',
-                            mix_before=(1, 10),
-                            rate= speed)
+    # generate well positions for replicates placed vertically
+    # start from column 1, row pairs A/B, C/D, etc.
+    def get_next_wells(start_index, num_replicates, used_wells):
+        col = 1 + (start_index // (num_rows // num_replicates))
+        row_pair_index = start_index % (num_rows // num_replicates)
+        wells = []
+        for i in range(num_replicates):
+            row_letter = row_letters[(row_pair_index * num_replicates) + i]
+            well = f"{row_letter}{col}"
+            wells.append(well)
+            used_wells.add(well)
+        return wells
 
-    p1000_multi.distribute((primer_vol*numtotalSamples*num_replicates*2), 
-                            temp_adapter['A2'].bottom(z=2), 
-                            reservoir['A1'], 
-                            new_tip='once')
+    # create mapping of samples and controls
+    used_wells = set()
+    sample_well_map = {}
 
-    p1000_multi.distribute((water_vol*numtotalSamples*num_replicates*2), 
-                            temp_adapter['A3'].bottom(z=2), 
-                            reservoir['A1'], 
-                            mix_after=(3, 40),
-                            new_tip='once')
+    # allocate wells for positive control
+    sample_well_map["positive_control"] = get_next_wells(0, num_replicates, used_wells)
 
-    # Transfer positive and negative control to A1–A3/B1-B3
-    p50_multi.distribute(5,
+    # allocate wells for negative control
+    sample_well_map["neg_control"] = get_next_wells(1, num_replicates, used_wells)
+
+    # allocate wells for each sample
+    for sample_idx in range(num_samples):
+        next_wells = get_next_wells(sample_idx + 2, num_replicates, used_wells)
+        sample_well_map[f"sample_{sample_idx+1}"] = next_wells
+    
+    #Add the positive control and no template control to the number of samples
+
+
+    # Transfer positive control to A1
+    p50_multi.distribute(2.5,
                          temp_adapter['A4'],
-                         [pcr_plate[f'A{i}'].bottom(z=0.1) for i in range(1, (num_replicates+1))],
+                         [pcr_plate[well].bottom(z=0.1) for well in sample_well_map["positive_control"]],
                          rate=speed,
                          mix_before=(1, 10),
                          disposal_vol=5)
 
     # Transfer negative control to B1–B3
-    p50_multi.distribute(5,
+    p50_multi.distribute(2.5,
                          temp_adapter['A5'],
-                         [pcr_plate[f'B{i}'].bottom(z=0.1) for i in range(1, (num_replicates+1))],
+                         [pcr_plate[well].bottom(z=0.1) for well in sample_well_map["neg_control"]],
                          rate=speed,
                          mix_before=(1, 10),
                          disposal_vol=5)
     
-    #pipette the  samples
-    total_wells = []
-    for index, tube in enumerate(sample_locations):
-        row_index = (index + 2) % len(row)  # Start at C (index 2)
-        row_letter = row[row_index]
-        column_block = 1 + 3 * (index // 6)  # Changes after C-H-A-B cycle
-        destination_wells = [f'{row_letter}{column_block + i}' for i in range(num_replicates)]
-        p50_multi.distribute(5,
-                             temp_adapter[tube],
-                             [pcr_plate[well].bottom(z=0.1) for well in destination_wells],
-                             rate=speed,
-                             mix_before=(1, 10),
-                             disposal_vol=5)
+    # Transfer samples
+    for sample_idx in range(num_samples):
+        tube_loc = sample_locations[sample_idx]
+        wells = sample_well_map[f"sample_{sample_idx+1}"]
 
-    #Configure the p50 pipette to use single tip NOTE: this resets the pipettes tip racks!
-    p50_multi.configure_nozzle_layout(style=ALL, start="A1",tip_racks=[tips_50])
+        p50_multi.distribute(
+            2.5,
+            temp_adapter[tube_loc],
+            [pcr_plate[well].bottom(z=0.1) for well in wells],
+            rate=speed,
+            mix_before=(1, 10),
+            disposal_vol=5)
 
-    # Determine columns with sample and control and pipette the pcr reagent mix
-    loadingbuff_steps = (num_samples + 2)   # Total wells (samples + controls) * replicates
-    rounded = ((loadingbuff_steps) // 8 * num_replicates) + num_replicates
-    destination_cols = [f'A{i}' for i in range(1,rounded+1)]
+    # Step 1: Distribute mastermix, primer mix, and water into PCR plate starting at row B1:
+    p1000_multi.distribute((mastermix_vol*numtotalSamples*num_replicates), 
+                            temp_adapter['A1'].bottom(z=2), 
+                            temp_adapter['A6'], 
+                            new_tip='once',
+                            mix_before=(1, 10),
+                            rate= speed-0.2)
 
-    p50_multi.distribute(16, 
-                            reservoir['A1'],
-                            [pcr_plate[col].bottom(z=0.1) for col in destination_cols],
+    p1000_multi.distribute((primer_vol*numtotalSamples*num_replicates), 
+                            temp_adapter['A2'].bottom(z=2), 
+                            temp_adapter['A6'], 
                             new_tip='once')
+
+    p1000_multi.distribute((water_vol*numtotalSamples*num_replicates), 
+                            temp_adapter['A3'].bottom(z=2), 
+                            temp_adapter['A6'], 
+                            mix_after=(3, 40),
+                            new_tip='once')
+
+    mastermix_wells = [well for key, wells in sample_well_map.items() for well in wells]
+    # distribute mastermix
+    p50_multi.distribute(
+        22.5,
+        temp_adapter['A6'],
+        [pcr_plate[well].bottom(z=5) for well in mastermix_wells],
+        new_tip='once',
+        disposal_vol=5,
+        rate=speed
+    )
 
     # Step 3: Run thermocycling conditions
     thermocycler.close_lid()
@@ -166,34 +197,21 @@ def run(protocol: protocol_api.ProtocolContext):
         steps=[
             {'temperature': 95, 'hold_time_seconds': 180},  # Initial Denaturation
         ] + [
-            {
-                'temperature': 95, 'hold_time_seconds': 15
-            },  # Denaturation
-            {
-                'temperature': 55, 'hold_time_seconds': 15
-            },  # Annealing
-            {
-                'temperature': 72, 'hold_time_seconds': 15
-            }   # Extension
-        ] * 35,  # 35 cycles
+            {'temperature': 95, 'hold_time_seconds': 30},   # Denaturation
+            {'temperature': 55, 'hold_time_seconds': 30},   # Annealing
+            {'temperature': 72, 'hold_time_seconds': 30},   # Extension
+        ] * 35
+        + [
+            {'temperature': 72, 'hold_time_seconds': 300}   # Final Extension, 5 min
+        ],
         repetitions=1
     )
 
-    thermocycler.set_block_temperature(72, hold_time_minutes=1)  # Final Extension
     thermocycler.set_block_temperature(4)  # Hold at 4°C
-    thermocycler.open_lid()
-
-    # Pipette loading buffer into the wells with sample/control
-
-    p50_multi.distribute(5,
-                        reservoir['A2'],
-                        [pcr_plate[col].bottom(z=0.1) for col in destination_cols],
-                        rate=speed,
-                        mix_before=(1, 10),
-                        disposal_vol=5)
+    #thermocycler.open_lid()
 
     # Stop video recording after the main task is completed
     video_process.terminate()
     
     # Step 4: Gel preparation and loading (manual step for now)
-    protocol.comment("After PCR, analyze products on a 2% agarose gel stained with ethidium bromide or SafeView.")
+    protocol.comment("After PCR, analyze products on a 2% agarose gel stained with ethidium bromide")
