@@ -76,7 +76,7 @@ def run(protocol: protocol_api.ProtocolContext):
     temp_adapter['A4'].load_liquid(liquid=Phusion, volume=1500) #click
     temp_adapter['A5'].load_liquid(liquid=ddH2O, volume=1500) #click
     temp_adapter['A6'].load_liquid(liquid=DMSO, volume=1500) #click
-    temp_adapter['A7'].load_liquid(liquid=dNTPs, volume=1500) #click
+    temp_adapter['B1'].load_liquid(liquid=dNTPs, volume=1500) #click
 
     # Load pipettes
     p50_multi = protocol.load_instrument('flex_8channel_50', 'left', tip_racks=[tiprack_50])
@@ -85,6 +85,99 @@ def run(protocol: protocol_api.ProtocolContext):
     # Open thermocycler lid
     thermocycler.open_lid()
     
+        # assign sample locations dynamically
+    sample_locations = []
+    row = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
+    for i in range(num_samples):
+        if i < 6:  # B1 to B6
+            sample_locations.append(f'B{i + 1}')
+        elif i < 12:  # C1 to C6
+            sample_locations.append(f'C{i - 5}')
+        elif i < 18:  # D1 to D6
+            sample_locations.append(f'D{i - 11}')
+        elif i < 23:
+            sample_locations.append(f'A{i - 16}')  # Stop if we exceed the number of available rows/columns
+        else:
+            print('Too many samples')
+
+    #Add the positive control and no template control to the number of samples
+    numtotalSamples = num_samples + 2
+    samples = [temp_adapter[i] for i in sample_locations]
+    sample_vol  = 2
+    reaction_vol = 50
+    buffer_vol = 10
+    primer_vol = 2.5
+    dmso_vol = 1
+    phusion_vol = 0.5
+    water_vol = reaction_vol -(sample_vol+buffer_vol+(primer_vol*2)+dmso_vol+phusion_vol)
+
+    # Step 1: Distribute mastermix and primer mix into PCR plate starting at row B1:
+    p1000_multi.distribute((water_vol*numtotalSamples*num_replicates), 
+                            ddH2O, 
+                            temp_adapter['B2'], 
+                            mix_after=(3, 40),
+                            new_tip='once')
+
+    p1000_multi.distribute((primer_vol*numtotalSamples*num_replicates), 
+                            OXA1L_F_Primer, 
+                            temp_adapter['B2'], 
+                            new_tip='once')
+
+    p1000_multi.distribute((primer_vol*numtotalSamples*num_replicates), 
+                            OXA1L_R_Primer, 
+                            temp_adapter['B2'], 
+                            new_tip='once')
+
+    p1000_multi.distribute((buffer_vol*numtotalSamples*num_replicates), 
+                            HF_Buffer, 
+                            temp_adapter['B2'], 
+                            new_tip='once',
+                            mix_before=(1, 10),
+                            rate= speed)
+    
+    p1000_multi.distribute((dmso_vol*numtotalSamples*num_replicates), 
+                            DMSO, 
+                            temp_adapter['B2'], 
+                            new_tip='once')
+
+    p1000_multi.distribute((dntp_vol*numtotalSamples*num_replicates), 
+                            dNTPs, 
+                            temp_adapter['B2'], 
+                            new_tip='once',
+                            mix_before=(1, 10),
+                            rate= speed)
+
+    p1000_multi.distribute((phusion_vol*numtotalSamples*num_replicates), 
+                            Phusion, 
+                            temp_adapter['B2'], 
+                            new_tip='once')
+
+    #pipette the  samples
+    total_wells = []
+    for index, tube in enumerate(sample_locations):
+        row_index = (index + 2) % len(row)  # Start at C (index 2)
+        row_letter = row[row_index]
+        column_block = 1 + 3 * (index // 6)  # Changes after C-H-A-B cycle
+        destination_wells = [f'{row_letter}{column_block + i}' for i in range(num_replicates)]
+        p50_multi.distribute(5,
+                             temp_adapter[tube],
+                             [pcr_plate[well].bottom(z=0.1) for well in destination_wells],
+                             rate=speed,
+                             mix_before=(1, 10),
+                             disposal_vol=5)
+
+    #Configure the p50 pipette to use single tip NOTE: this resets the pipettes tip racks!
+    p50_multi.configure_nozzle_layout(style=ALL, start="A1",tip_racks=[tips_50])
+
+    # Determine columns with sample and control and pipette the pcr reagent mix
+    loadingbuff_steps = (num_samples + 2)   # Total wells (samples + controls) * replicates
+    rounded = ((loadingbuff_steps) // 8 * num_replicates) + num_replicates
+    destination_cols = [f'A{i}' for i in range(1,rounded+1)]
+
+    p50_multi.distribute(16, 
+                            reservoir['A1'],
+                            [pcr_plate[col].bottom(z=0.1) for col in destination_cols],
+                            new_tip='once')
     # Transfer reagents
     # 1. Transfer OXA1L_F (2.5 μL)
     p50_multi.transfer(2.5, temp_module['A1'], pcr_plate.columns()[0], new_tip='once')
