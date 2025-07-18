@@ -8,7 +8,7 @@ import datetime
 import time
 
 metadata = {
-    'protocolName': 'Gel-based Chemical Proteomics 07112025',
+    'protocolName': 'Gel-based Chemical Proteomics 20-sample 07182025',
     'author': 'Assistant',
     'description': 'Serial dilution of BSA standard and sample processing. This includes cooling samples to 4c, heating plate to 37c with shaking and recording a video of the whole process. Place BSA Standard in A1, Lysis buffer in A2, change the number of samples and place samples in row B starting at B1. MINIMUM Sample volumen in eppendorf tubes is 40 uL. '
 }
@@ -357,17 +357,18 @@ def run(protocol: protocol_api.ProtocolContext):
                             new_tip='once')
 
     p50_multi.transfer(2*(num_samples*1.5), 
+                            temp_adapter['D3'], 
                             temp_adapter['D6'], 
-                            temp_adapter['D6'], 
+                            mix_after=(3,50),
                             new_tip='once')
     
     # Pipette the click reaction premix
-    p50_multi.distribute(6, 
+    p50_multi.transfer(6, 
                             temp_adapter['D6'], 
                             [plate3[i] for i in destination_wells],
                             rate=speed-0.1,
                             delay=2,
-                            mix_before=(3, 30),
+                            mix_before=(1, 10),
                             mix_after=(3, 30), 
                             new_tip='always')
 
@@ -380,10 +381,10 @@ def run(protocol: protocol_api.ProtocolContext):
 
     # Add the loading buffer and move to the thermocylcer to seal and store.
     p50_multi.configure_nozzle_layout(style=ALL, tip_racks=[partial_50])
-    p50_multi.distribute(50, 
+    p50_multi.transfer(50, 
                             reservoir['A9'], 
-                            [plate3[i].bottom(z=7) for i in destination_wells], 
-                            #mix_after=(3, 40), 
+                            [plate3[i] for i in destination_wells], 
+                            mix_after=(3, 40), 
                             new_tip='always')
 
     heater_shaker.open_labware_latch()

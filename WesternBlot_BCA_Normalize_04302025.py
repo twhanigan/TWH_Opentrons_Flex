@@ -33,7 +33,7 @@ def run(protocol: protocol_api.ProtocolContext):
     num_samples = 10 #change this to the number of samples you need to run. The maximum is 18.
     num_replicates = 3  # the number of replicates
     position_standards = 'A2'
-    standards_col = re.findall("[0-9]+", position_standards)[0:]
+    standards_col = 2
     speed= 0.35
 
     # Load modules
