@@ -8,7 +8,7 @@ import datetime
 import time
 
 metadata = {
-    'protocolName': 'Gel-based Chemical Proteomics 07112025',
+    'protocolName': 'Gel-based Chemical Proteomics 10-sample 07192025',
     'author': 'Assistant',
     'description': 'Normalization and click reaction for Gel-based photolabeling '
 }

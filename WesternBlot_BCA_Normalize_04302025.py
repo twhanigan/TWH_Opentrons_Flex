@@ -32,8 +32,8 @@ def run(protocol: protocol_api.ProtocolContext):
     target_concentration = ug_protein/final_volume_ul # 40 ug protein/ 15 uL final volume
     num_samples = 10 #change this to the number of samples you need to run. The maximum is 18.
     num_replicates = 3  # the number of replicates
-    position_standards = 'A2'
     standards_col = 2
+    position_standards = f'A{standards_col}'
     speed= 0.35
 
     # Load modules
@@ -178,7 +178,7 @@ def run(protocol: protocol_api.ProtocolContext):
         #Transfer the samples onto plate 2
         p50_multi.distribute(5,
                         temp_adapter[tube],
-                        [plate2[i] for i in destination_wells],
+                        [plate2[i].bottom(z=0.1) for i in destination_wells],
                         rate = speed,
                         mix_before=(1, 10),
                         disposal_vol=5)  # Distributing to three consecutive columns
