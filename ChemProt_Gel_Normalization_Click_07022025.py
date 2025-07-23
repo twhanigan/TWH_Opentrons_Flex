@@ -8,7 +8,7 @@ import datetime
 import time
 
 metadata = {
-    'protocolName': 'Gel-based Chemical Proteomics 10-sample 07192025',
+    'protocolName': 'Gel-based Chemical Proteomics 10-sample 07222025',
     'author': 'Assistant',
     'description': 'Normalization and click reaction for Gel-based photolabeling '
 }
@@ -78,11 +78,11 @@ def run(protocol: protocol_api.ProtocolContext):
     reservoir['A9'].load_liquid(liquid=loading_buffer, volume=1000)  
 
     temp_adapter['A1'].load_liquid(liquid=bsa_standard, volume = 1500)
-    temp_adapter['D1'].load_liquid(liquid=copper_sulfate, volume=1500) #click
-    temp_adapter['D2'].load_liquid(liquid=rhodamine_azide, volume=1500) #click
-    temp_adapter['D3'].load_liquid(liquid=tcep_click, volume=1500) #click
-    temp_adapter['D4'].load_liquid(liquid=tbta, volume=1500) #click
-    temp_adapter['D5'].load_liquid(liquid=empty, volume=1500) #click
+    temp_adapter['A2'].load_liquid(liquid=copper_sulfate, volume=1500) #click
+    temp_adapter['A3'].load_liquid(liquid=rhodamine_azide, volume=1500) #click
+    temp_adapter['A4'].load_liquid(liquid=tcep_click, volume=1500) #click
+    temp_adapter['A5'].load_liquid(liquid=tbta, volume=1500) #click
+    temp_adapter['A6'].load_liquid(liquid=empty, volume=1500) #click
 
     # Load pipettes
     p50_multi = protocol.load_instrument('flex_8channel_50', 'left') 
@@ -198,41 +198,43 @@ def run(protocol: protocol_api.ProtocolContext):
     protocol.move_labware(labware=partial_50, new_location='B3', use_gripper=True)
     p50_multi.configure_nozzle_layout(style=SINGLE, start="A1", tip_racks=[partial_50]) #,
     
-    #Pipette rhodamine azide (d2), tbta (d4), cuso4 (d1), and tcep (d3)
-    p50_multi.transfer(1*(num_samples*1.5), 
-                            temp_adapter['D2'], 
-                            temp_adapter['D6'],
+    #Pipette rhodamine azide (A3), tbta (A5), cuso4 (A2), and tcep (A4)
+    p50_multi.transfer(1*(num_samples*1.2), 
+                            temp_adapter['A3'], 
+                            temp_adapter['A6'],
                             rate=speed-0.1,
                             mix_before=(1,10), 
                             delay=2,
-                            new_tip='once')
+                            new_tip='always')
 
-    p50_multi.transfer(6*(num_samples*1.5), 
-                            temp_adapter['D4'], 
-                            temp_adapter['D6'],
+    p50_multi.transfer(6*(num_samples*1.2), 
+                            temp_adapter['A5'], 
+                            temp_adapter['A6'],
                             mix_before=(1,10),
                             rate=speed,
                             delay=3, 
-                            new_tip='once')
+                            new_tip='always')
 
-    p50_multi.transfer(2*(num_samples*1.5), 
-                            temp_adapter['D1'], 
-                            temp_adapter['D6'], 
-                            new_tip='once')
+    p50_multi.transfer(2*(num_samples*1.2), 
+                            temp_adapter['A2'], 
+                            temp_adapter['A6'], 
+                            new_tip='always')
 
-    p50_multi.transfer(2*(num_samples*1.5), 
-                            temp_adapter['D3'], 
-                            temp_adapter['D6'], 
-                            mix_after=(3,20),
+    p50_multi.transfer(2*(num_samples*1.2), 
+                            temp_adapter['A4'], 
+                            temp_adapter['A6'], 
+                            mix_after=(3,30),
                             new_tip='always')
     
     # Pipette the click reaction premix
-    p50_multi.transfer(6, 
-                            temp_adapter['D6'], 
+    click volume = 5.5*(final_volume/50)
+    p50_multi.transfer(click_volume, 
+                            temp_adapter['A6'], 
                             [plate3[i] for i in destination_wells],
                             rate=speed-0.1,
                             delay=2,
-                            mix_before=(1, 30),
+                            mix_before=(1, 10),
+                            mix_after = (3,30),
                             new_tip='always')
 
     # Step 11: shake the sample plate for click reaction
@@ -244,11 +246,16 @@ def run(protocol: protocol_api.ProtocolContext):
     heater_shaker.open_labware_latch()
     thermocycler.open_lid()
     protocol.move_labware(labware=plate3, new_location=thermocycler, use_gripper=True)
+
     # Add the loading buffer and move to the thermocylcer to seal and store.
-    p50_multi.distribute(50, 
+    loading_buffer_volume = round((final_volume+click_volume) / 3, 1)
+    columns = sorted(set(well[1:] for well in destination_wells), key=int)
+    column_targets = [f'A{col}' for col in columns]
+    p50_multi.configure_nozzle_layout(style=ALL, tip_racks=[partial_50])
+    p50_multi.transfer(loading_buffer_volume, 
                             reservoir['A9'], 
-                            [plate3[i].bottom(z=7) for i in destination_wells], 
-                            #mix_after=(3, 40), 
+                            [plate3[well] for well in column_targets], 
+                            mix_after=(3, 40), 
                             new_tip='always')
     thermocycler.close_lid()
     thermocycler.set_block_temperature(95)  # Hold at 4°C

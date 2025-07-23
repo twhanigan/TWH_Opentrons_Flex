@@ -8,9 +8,9 @@ import datetime
 import time
 
 metadata = {
-    'protocolName': 'Gel-based Chemical Proteomics 10-sample 07182025',
+    'protocolName': 'Gel-based Chemical Proteomics 10-sample 07222025',
     'author': 'Assistant',
-    'description': 'Serial dilution of BSA standard and sample processing. This includes cooling samples to 4c, heating plate to 37c with shaking and recording a video of the whole process. Place BSA Standard in A1, Lysis buffer in A2, change the number of samples and place samples in row B starting at B1. MINIMUM Sample volumen in eppendorf tubes is 40 uL. '
+    'description': 'Normalization and click reaction for Gel-based photolabeling '
 }
 
 requirements = {
@@ -20,15 +20,14 @@ requirements = {
 
 def run(protocol: protocol_api.ProtocolContext):
     protocol.comment(
-        "Place BSA Standard in A1, Lysis buffer in A2, tbta in A3, biotin in A4, cuso4 in A5, tcep in A6 and samples in row B")
-    protocol.comment("Running the BCA assay")
-
+        "The Hanigan lab is the best lab!")
+ 
     target_concentration = 1.5 #mg/ml
     final_volume = 50 # uL
     num_samples = 10 # change this to the number of samples you need to run. The maximum is 18.
     num_rows = 8  # A-H
     num_replicates = 3  # the number of replicates
-    speed= 0.3 #Speed of pipetting NP40 lysis buffer=0.35, 2M Urea in EPPS=0.3
+    speed= 0.35 #Speed of pipetting NP40 lysis buffer=0.35, 2M Urea in EPPS=0.3
 
     #Start recording the video
     video_process = subprocess.Popen(["python3", "/var/lib/jupyter/notebooks/record_video.py"])
@@ -41,6 +40,7 @@ def run(protocol: protocol_api.ProtocolContext):
     chute = protocol.load_waste_chute()
 
     # Load adapters
+    #hs_adapter = heater_shaker.load_adapter('opentrons_universal_flat_adapter')
     temp_adapter = temp_module.load_labware('opentrons_24_aluminumblock_nest_1.5ml_screwcap')
 
     #set the heater_shaker temp to 60C
@@ -50,12 +50,10 @@ def run(protocol: protocol_api.ProtocolContext):
     temp_module.set_temperature(celsius=10)
     
     # Load labware
-    partial_50 = protocol.load_labware(load_name="opentrons_flex_96_filtertiprack_50ul",location="B3")
+    partial_50 = protocol.load_labware(load_name="opentrons_flex_96_filtertiprack_50ul",location="B4")
     tips_200 = protocol.load_labware(load_name="opentrons_flex_96_filtertiprack_200ul",location="A3")
     tips_1000 = protocol.load_labware('opentrons_flex_96_filtertiprack_1000ul', 'C4')
-    plate1 = protocol.load_labware('opentrons_96_wellplate_200ul_pcr_full_skirt', 'A2') 
-    plate2 = protocol.load_labware('corning_96_wellplate_360ul_flat', location='B2') #on heatshaker
-    plate3 = protocol.load_labware('opentrons_96_wellplate_200ul_pcr_full_skirt', location='A4')  # New deep well plate for final samples
+    plate3 = protocol.load_labware('opentrons_96_wellplate_200ul_pcr_full_skirt', location='B2')  # New deep well plate for final samples
     reservoir = protocol.load_labware('nest_12_reservoir_15ml', 'C2')
     
     # Liquid definitions
@@ -90,46 +88,6 @@ def run(protocol: protocol_api.ProtocolContext):
     p50_multi = protocol.load_instrument('flex_8channel_50', 'left') 
     p1000_multi = protocol.load_instrument('flex_8channel_1000', 'right') 
 
-    #Configure the p1000 pipette to use all channels
-    p1000_multi.configure_nozzle_layout(style=ALL, tip_racks=[tips_200])
-
-    # Steps 1: Add lysis buffer to column 1 of plate1. 
-    p1000_multi.distribute(50, 
-         reservoir['A7'],
-         plate1['A1'],
-         rate = speed,
-         mix_before=(1, 50),
-         delay = 2,
-         new_tip='once')
-
-    #Step 3: Configure the p50 pipette to use single tip NOTE: this resets the pipettes tip racks! it doesn't
-    p50_multi.configure_nozzle_layout(style=SINGLE, start="A1",tip_racks=[partial_50])
-
-    # Step 4: Transfer BSA standard (20 mg/ml) to first well of column 1
-    p50_multi.transfer(50,
-        temp_adapter['A1'],
-        plate1['A1'],
-        rate = 0.35,
-        delay = 2,
-        mix_after=(3, 40),
-        new_tip='once')
-
-    # Step 5: Perform serial dilution down column 1
-    rows = ['A','B', 'C', 'D', 'E', 'F', 'G']
-    p50_multi.pick_up_tip()
-    for source, dest in zip(rows[:-1], rows[1:]):
-        p50_multi.transfer(50,
-                         plate1[f'{source}1'],
-                         plate1[f'{dest}1'],
-                         rate = 0.5,
-                         mix_after=(3, 40),
-                         new_tip='never', 
-                         disposal_vol=0)
-
-    # Step 6: remove excess standard from well G
-    p50_multi.aspirate(50,plate1['G1'])
-    p50_multi.drop_tip()
-
     # assign sample locations dynamically
     sample_locations = []
     for i in range(num_samples):
@@ -142,99 +100,7 @@ def run(protocol: protocol_api.ProtocolContext):
         else:
             break  # Stop if we exceed the number of available rows/columns
 
-    # Predefined list of letters A-H
-    row = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
-
-    # Create a list of rows that repeats based on num_samples
-    rows = [row[i % len(row)] for i in range(num_samples)]
-
-    # Create a dynamic sample map based on the assigned sample locations
-    sample_map = list(map(lambda i,j :(i,j), rows, sample_locations))
-
-# Iterate over the sample_map list
-    for index, (row, tube) in enumerate(sample_map):
-        if index < 8:
-            base_column = 4 + (index // 8)  # This will determine the starting column for each row
-        elif index< 16:
-            base_column = 6 + (index // 8)
-        else:
-            base_column = 8 + (index //8)
-
-        # Prepare destination wells
-        destination_wells = [f'{row}{base_column + (i % 3)}' for i in range(3)]  # Generate wells like A4, A5, A6 or B4, B5, B6, etc.
-        
-        #Transfer the samples onto plate 2
-        p50_multi.distribute(5,
-                        temp_adapter[tube],
-                        [plate2[i].bottom(z=0.3) for i in destination_wells],
-                        rate = speed,
-                        mix_before=(1, 10),
-                        disposal_vol=5)  # Distributing to three consecutive columns
-
-    #Step 9: Load the p50 with full tip rack (don't need to)
-    p50_multi.configure_nozzle_layout(style=ALL, tip_racks=[partial_50]) #, 
-
-    #Step 10: Pipette triplicate of controls from plate1 column 1 to plate2 columns 1,2,3 
-    p50_multi.distribute(5, 
-                        plate1['A1'], 
-                        [plate2[f'A{i}'].bottom(z=0.1) for i in range(1, 4)],
-                        rate= speed,
-                        mix_before=(1, 10),
-                        disposal_vol=5)
-
-    
-    protocol.move_labware(labware=tips_1000, new_location='C3', use_gripper=True)
-    #Step 12: Load the p1000 with full tip rack (don't need to)
-    p1000_multi.configure_nozzle_layout(style=ALL, tip_racks=[tips_1000]) #,
-
-    # Step 13: Add reagent A
-    p1000_multi.distribute(50,
-                        reservoir['A1'],
-                        plate2.wells(),
-                        new_tip='once',
-                        disposal_vol=50)
-
-    # Step 14: Add reagent B
-    p1000_multi.distribute(48,
-                        reservoir['A3'],
-                        plate2.wells(),
-                        new_tip='once',
-                        disposal_vol=50)
-
-    # Step 15: Add reagent c
-    p50_multi.distribute(2,
-                        reservoir['A5'],
-                        plate2.wells(),
-                        new_tip='once',
-                        rate = speed,
-                        mix_after=(2, 10),
-                        disposal_vol=5)
-
-    #Step 16: move plate 2 to the heater shaker and incubate at 37c
-    protocol.move_labware(labware=plate2, new_location=heater_shaker, use_gripper=True)
-    heater_shaker.set_and_wait_for_temperature(50)
-    heater_shaker.close_labware_latch()
-    heater_shaker.set_and_wait_for_shake_speed(500)
-    protocol.delay(minutes=5)
-
-    #Step 17 deactivate heater shaker and temp modules
-    heater_shaker.deactivate_shaker()
-    heater_shaker.deactivate_heater()
-    heater_shaker.open_labware_latch()
-
     # ---------------- Normalizing BCA Assay ----------------
-    # Tell the user to load BCA assay data
-    protocol.comment("Place BCA assay absorbance data in /var/lib/jupyter/notebooks/Data, load new deep well plate into flex B2 (where BCA plate was), and new tube rack into A2 (with excess lysis buffer in A1 and empty falcon in A2)")
-
-    # Pause the protocol until the user loads the file to /var/lib/jupyter/notebooks
-    protocol.pause()
-
-    # Tell the robot that new labware will be placed onto the deck
-    protocol.move_labware(labware=plate1, new_location='D4', use_gripper=True)
-    protocol.move_labware(labware=plate2, new_location='A2', use_gripper=True)
-    protocol.move_labware(labware=plate3, new_location="B2", use_gripper=True)
-    protocol.move_labware(labware=partial_50, new_location='B4', use_gripper=True)
-
     #Configure the p1000 pipette to use single tip NOTE: this resets the pipettes tip racks!
     p1000_multi.configure_nozzle_layout(style=SINGLE, start="A1",tip_racks=[tips_200])
 
@@ -330,7 +196,6 @@ def run(protocol: protocol_api.ProtocolContext):
     # ---------------- Click Reaction ----------------
     protocol.comment("Running click reaction")
     protocol.move_labware(labware=partial_50, new_location='B3', use_gripper=True)
-    protocol.move_labware(labware=tips_1000, new_location='C4', use_gripper=True)
     p50_multi.configure_nozzle_layout(style=SINGLE, start="A1", tip_racks=[partial_50]) #,
     
     #Pipette rhodamine azide (A3), tbta (A5), cuso4 (A2), and tcep (A4)
@@ -370,8 +235,8 @@ def run(protocol: protocol_api.ProtocolContext):
                             [plate3[i] for i in destination_wells],
                             rate=speed-0.1,
                             delay=2,
-                            mix_before=(1, 10),
-                            mix_after=(3,30),
+                            mix_before=(3, 10),
+                            mix_after = (3,30),
                             new_tip='always')
 
     # Step 11: shake the sample plate for click reaction
@@ -398,3 +263,4 @@ def run(protocol: protocol_api.ProtocolContext):
     thermocycler.set_block_temperature(95)  # Hold at 4°C
     protocol.delay(minutes=5)
     thermocycler.set_block_temperature(4)  # Hold at 4°C
+
