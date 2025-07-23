@@ -199,7 +199,7 @@ def run(protocol: protocol_api.ProtocolContext):
     p50_multi.configure_nozzle_layout(style=SINGLE, start="A1", tip_racks=[partial_50]) #,
     
     #Pipette rhodamine azide (A3), tbta (A5), cuso4 (A2), and tcep (A4)
-    p50_multi.transfer(1*(num_samples*1.2), 
+    p50_multi.transfer(1*(num_samples*1.5), 
                             temp_adapter['A3'], 
                             temp_adapter['A6'].bottom(z=0.1),
                             rate=speed,
@@ -209,7 +209,7 @@ def run(protocol: protocol_api.ProtocolContext):
                             #blow_out=True,
                             new_tip='always')
 
-    p50_multi.transfer(6*(num_samples*1.2), 
+    p50_multi.transfer(3*(num_samples*1.5), 
                             temp_adapter['A5'], 
                             temp_adapter['A6'],
                             mix_before=(1,10),
@@ -217,19 +217,19 @@ def run(protocol: protocol_api.ProtocolContext):
                             delay=3, 
                             new_tip='always')
 
-    p50_multi.transfer(2*(num_samples*1.2), 
+    p50_multi.transfer(1*(num_samples*1.5), 
                             temp_adapter['A2'], 
                             temp_adapter['A6'], 
                             new_tip='always')
 
-    p50_multi.transfer(2*(num_samples*1.2), 
+    p50_multi.transfer(1*(num_samples*1.5), 
                             temp_adapter['A4'], 
                             temp_adapter['A6'], 
                             mix_after=(3,30),
                             new_tip='always')
     
     # Pipette the click reaction premix
-    click_volume = 5.5*(final_volume/50)
+    click_volume = 6*(final_volume/50)
     p50_multi.transfer(click_volume, 
                             temp_adapter['A6'], 
                             [plate3[i] for i in destination_wells],
