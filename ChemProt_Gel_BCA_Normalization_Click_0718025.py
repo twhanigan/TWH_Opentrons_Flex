@@ -8,7 +8,7 @@ import datetime
 import time
 
 metadata = {
-    'protocolName': 'Gel-based Chemical Proteomics 10-sample 07182025',
+    'protocolName': 'Gel-based Chemical Proteomics 10-sample 07232025',
     'author': 'Assistant',
     'description': 'Serial dilution of BSA standard and sample processing. This includes cooling samples to 4c, heating plate to 37c with shaking and recording a video of the whole process. Place BSA Standard in A1, Lysis buffer in A2, change the number of samples and place samples in row B starting at B1. MINIMUM Sample volumen in eppendorf tubes is 40 uL. '
 }
@@ -334,7 +334,7 @@ def run(protocol: protocol_api.ProtocolContext):
     p50_multi.configure_nozzle_layout(style=SINGLE, start="A1", tip_racks=[partial_50]) #,
     
     #Pipette rhodamine azide (A3), tbta (A5), cuso4 (A2), and tcep (A4)
-    p50_multi.transfer(1*(num_samples*1.5), 
+    p50_multi.transfer(1*(num_samples*2), 
                             temp_adapter['A3'], 
                             temp_adapter['A6'].bottom(z=0.1),
                             rate=speed,
@@ -344,7 +344,7 @@ def run(protocol: protocol_api.ProtocolContext):
                             #blow_out=True,
                             new_tip='always')
 
-    p50_multi.transfer(3*(num_samples*1.5), 
+    p50_multi.transfer(3*(num_samples*2), 
                             temp_adapter['A5'], 
                             temp_adapter['A6'],
                             mix_before=(1,10),
@@ -352,25 +352,47 @@ def run(protocol: protocol_api.ProtocolContext):
                             delay=3, 
                             new_tip='always')
 
-    p50_multi.transfer(1*(num_samples*1.5), 
+    p50_multi.transfer(1*(num_samples*2), 
                             temp_adapter['A2'], 
-                            temp_adapter['A6'], 
+                            temp_adapter['A6'],
+                            mix_before=(1,10), 
                             new_tip='always')
 
-    p50_multi.transfer(1*(num_samples*1.5), 
+    p50_multi.transfer(1*(num_samples*2), 
                             temp_adapter['A4'], 
-                            temp_adapter['A6'], 
+                            temp_adapter['A6'],
+                            mix_before=(1,10), 
                             mix_after=(3,30),
                             new_tip='always')
     
+    # Make sure the click reagents are well mixed
+    protocol.move_labware(labware=partial_50, new_location='B4', use_gripper=True)
+    volume_click_reaction = final_volume+click_volume
+    def mix_click_reagents():
+        if volume_click_reaction < 100:
+            positions_mixing = [1, 2, 3]
+        elif 100 < volume_click_reaction < 250:
+            positions_mixing = [1, 6, 10]
+        elif 250 < volume_click_reaction < 500:
+            positions_mixing = [1, 8, 15]
+        elif 500 < volume_click_reaction < 1000:
+            positions_mixing = [1, 10, 20]
+        else:
+            positions_mixing = [1]  # Fallback/default case
+
+        for position in positions_mixing:
+            pipette.mix(3, final_volume, location_tube.bottom(z=position))
+    mix_click_reagents()
+
     # Pipette the click reaction premix
+    protocol.move_labware(labware=partial_50, new_location='B3', use_gripper=True)
     click_volume = 6*(final_volume/50)
     p50_multi.transfer(click_volume, 
                             temp_adapter['A6'], 
                             [plate3[i] for i in destination_wells],
                             rate=speed-0.1,
                             delay=2,
-                            mix_before=(1, 10),
+                            mix_before=(3, 40),
                             mix_after=(3,30),
                             new_tip='always')
 
@@ -385,7 +407,7 @@ def run(protocol: protocol_api.ProtocolContext):
     protocol.move_labware(labware=plate3, new_location=thermocycler, use_gripper=True)
 
     # Add the loading buffer and move to the thermocylcer to seal and store.
-    loading_buffer_volume = round((final_volume+click_volume) / 3, 1)
+    loading_buffer_volume = round(volume_click_reaction / 3, 1)
     columns = sorted(set(well[1:] for well in destination_wells), key=int)
     column_targets = [f'A{col}' for col in columns]
     p50_multi.configure_nozzle_layout(style=ALL, tip_racks=[partial_50])
