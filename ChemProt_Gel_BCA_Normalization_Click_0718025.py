@@ -366,22 +366,58 @@ def run(protocol: protocol_api.ProtocolContext):
                             new_tip='always')
     
     # Make sure the click reagents are well mixed
-    protocol.move_labware(labware=partial_50, new_location='B4', use_gripper=True)
     volume_click_reaction = final_volume+click_volume
     def mix_click_reagents():
+        volume_click_reaction = final_volume + click_volume
+        location = temp_adapter['A6']
+        pipette = None
+        moved_partial_50 = False
+        moved_tips_1000 = False
+
         if volume_click_reaction < 100:
             positions_mixing = [1, 2, 3]
+            pipette = p50_multi
         elif 100 < volume_click_reaction < 250:
-            positions_mixing = [1, 6, 10]
+            positions_mixing = [1, 4, 9]
+            protocol.move_labware(labware=partial_50, new_location='B4', use_gripper=True)
+            moved_partial_50 = True
+            pipette = p1000_multi
         elif 250 < volume_click_reaction < 500:
-            positions_mixing = [1, 8, 15]
+            positions_mixing = [1, 6, 11]
+            protocol.move_labware(labware=partial_50, new_location='B4', use_gripper=True)
+            moved_partial_50 = True
+            protocol.move_labware(labware=tips_1000, new_location='B3', use_gripper=True)
+            moved_tips_1000 = True
+            p1000_multi.configure_nozzle_layout(style=SINGLE, start="A1",tip_racks=[tips_1000])
+            pipette = p1000_multi
         elif 500 < volume_click_reaction < 1000:
-            positions_mixing = [1, 10, 20]
+            positions_mixing = [1, 10, 16]
+            protocol.move_labware(labware=partial_50, new_location='B4', use_gripper=True)
+            moved_partial_50 = True
+            protocol.move_labware(labware=tips_1000, new_location='B3', use_gripper=True)
+            moved_tips_1000 = True
+            p1000_multi.configure_nozzle_layout(style=SINGLE, start="A1",tip_racks=[tips_1000])
+            pipette = p1000_multi
         else:
-            positions_mixing = [1]  # Fallback/default case
+            positions_mixing = [1, 1, 1]  # Fallback
+            pipette = p1000_multi
 
-        for position in positions_mixing:
-            pipette.mix(3, final_volume, location_tube.bottom(z=position))
+        # Perform mixing
+        pipette.pick_up_tip()  # Optional if not done earlier
+        pipette.aspirate(final_volume / 2, location.bottom(z=positions_mixing[0]))
+        pipette.dispense(final_volume / 2, location.bottom(z=positions_mixing[1]))
+        pipette.aspirate(final_volume / 3, location.bottom(z=positions_mixing[2]))
+        pipette.dispense(final_volume / 3, location.bottom(z=positions_mixing[0]))
+        pipette.mix(3, final_volume, location.bottom(z=positions_mixing[0]))
+        pipette.drop_tip()
+
+        # Move labware back if applicable
+        if moved_tips_1000:
+            protocol.move_labware(labware=tips_1000, new_location='C4', use_gripper=True)
+        if moved_partial_50:
+            protocol.move_labware(labware=partial_50, new_location='B3', use_gripper=True)
+
+    # Call the function
     mix_click_reagents()
 
     # Pipette the click reaction premix

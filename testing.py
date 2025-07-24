@@ -74,3 +74,30 @@ print(loading_buffer_volume)
 columns = sorted(set(well[1:] for well in destination_wells), key=int)
 column_targets = [f'A{col}' for col in columns]
 [print(well) for well in column_targets]
+
+def mix_click_reagents():
+    if volume_click_reaction < 100:
+        positions_mixing = [1, 2, 3]
+        pipette = p50_multi
+    elif 100 < volume_click_reaction < 250:
+        positions_mixing = [1, 4, 9]
+        protocol.move_labware(labware=partial_50, new_location='B4', use_gripper=True)
+        pipette = p1000_multi
+    elif 250 < volume_click_reaction < 500:
+        positions_mixing = [1, 6, 11]
+        protocol.move_labware(labware=partial_50, new_location='B4', use_gripper=True)
+        pipette = p1000_multi
+    elif 500 < volume_click_reaction < 1000:
+        positions_mixing = [1, 10, 16]
+        protocol.move_labware(labware=partial_50, new_location='B4', use_gripper=True)
+        pipette = p1000_multi
+    else:
+        positions_mixing = [1, 1, 1]  # Fallback/default case
+        pipette = p1000_multi
+
+    pipette.aspirate(final_volume/2, location_tube.bottom(z=positions_mixing[0]))
+    pipette.dispense(final_volume/2, location_tube.bottom(z=positions_mixing[1]))
+    pipette.aspirate(final_volume/3, location_tube.bottom(z=positions_mixing[2]))
+    pipette.dispense(final_volume/3, location_tube.bottom(z=positions_mixing[0]))
+    pipette.mix(7, volume_mixing, location_tube.bottom(z = position)) 
+mix_click_reagents()
