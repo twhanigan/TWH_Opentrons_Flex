@@ -1,5 +1,4 @@
 from opentrons import protocol_api
-from opentrons.protocol_api.labware import Labware
 from opentrons.protocol_api import SINGLE, ALL
 import pandas as pd
 import numpy as np
@@ -24,7 +23,7 @@ def run(protocol: protocol_api.ProtocolContext):
         "The Hanigan lab is the best lab!")
  
     target_concentration = 1.5 #mg/ml
-    final_volume = 50 # µL
+    final_volume = 50 # uL
     num_samples = 10 # change this to the number of samples you need to run. The maximum is 18.
     num_rows = 8  # A-H
     num_replicates = 3  # the number of replicates
@@ -133,67 +132,132 @@ def run(protocol: protocol_api.ProtocolContext):
     # Flatten the absorbance values into a single list
     absorbance_values = df.values.flatten()
 
-    # Create the DataFrame
-    initial_df = pd.DataFrame({'Well': well_names, 'Absorbance': absorbance_values})
+    def normalize_samples():
+        """
+        Calculates and transfers normalized unknown samples using appropriate pipettes and tips
+        based on volume. Tip racks are moved and configured dynamically.
+        Assumes all volumes are in µL.
+        """
 
-    # Process data for normalization
-    samples, replicate_1, replicate_2, replicate_3 = [], [], [], []
-    sample_index = 1
-    for col_offset in range(0, 12, 3):  # Iterate by column groups (triplets)
-        for row_offset in range(8):  # Iterate row-wise for each sample
-            start = row_offset * 12 + col_offset  # Starting index for the sample
-            if start + 2 < len(initial_df):
-                samples.append(f"Sample {sample_index}")
-                replicate_1.append(initial_df.iloc[start]['Absorbance'])
-                replicate_2.append(initial_df.iloc[start + 1]['Absorbance'])
-                replicate_3.append(initial_df.iloc[start + 2]['Absorbance'])
-                sample_index += 1
+        # Create absorbance DataFrame
+        initial_df = pd.DataFrame({'Well': well_names, 'Absorbance': absorbance_values})
+        samples, replicate_1, replicate_2, replicate_3 = [], [], [], []
+        sample_index = 1
+        for col_offset in range(0, 12, 3):
+            for row_offset in range(8):
+                start = row_offset * 12 + col_offset
+                if start + 2 < len(initial_df):
+                    samples.append(f"Sample {sample_index}")
+                    replicate_1.append(initial_df.iloc[start]['Absorbance'])
+                    replicate_2.append(initial_df.iloc[start + 1]['Absorbance'])
+                    replicate_3.append(initial_df.iloc[start + 2]['Absorbance'])
+                    sample_index += 1
 
-    final_df = pd.DataFrame({
-        'Sample': samples,
-        'Replicate 1': replicate_1,
-        'Replicate 2': replicate_2,
-        'Replicate 3': replicate_3
-    })
+        final_df = pd.DataFrame({
+            'Sample': samples,
+            'Replicate 1': replicate_1,
+            'Replicate 2': replicate_2,
+            'Replicate 3': replicate_3
+        })
 
-    samples_1_to_8 = final_df.iloc[:8]
-    samples_1_to_8['Mean Absorbance'] = samples_1_to_8[['Replicate 1', 'Replicate 2', 'Replicate 3']].mean(axis=1)
-    protein_concentrations = [10, 5, 2.5, 1.25, 0.625, 0.3125, 0.15625, 0]
-    samples_1_to_8['Protein Concentration (mg/mL)'] = protein_concentrations
+        # Calibration using standard samples (1–8)
+        samples_1_to_8 = final_df.iloc[:8].copy()
+        samples_1_to_8['Mean Absorbance'] = samples_1_to_8[['Replicate 1', 'Replicate 2', 'Replicate 3']].mean(axis=1)
+        protein_concentrations = [10, 5, 2.5, 1.25, 0.625, 0.3125, 0.15625, 0]
+        samples_1_to_8['Protein Concentration (mg/mL)'] = protein_concentrations
+        slope, intercept = np.polyfit(
+            samples_1_to_8['Protein Concentration (mg/mL)'],
+            samples_1_to_8['Mean Absorbance'],
+            1
+        )
 
-    slope, intercept = np.polyfit(samples_1_to_8['Protein Concentration (mg/mL)'], samples_1_to_8['Mean Absorbance'], 1)
-    y_pred = slope * samples_1_to_8['Protein Concentration (mg/mL)'] + intercept
-    ss_res = np.sum((samples_1_to_8['Mean Absorbance'] - y_pred) ** 2)
-    ss_tot = np.sum((samples_1_to_8['Mean Absorbance'] - np.mean(samples_1_to_8['Mean Absorbance'])) ** 2)
-    r_squared = 1 - (ss_res / ss_tot)
+        # Process unknown samples
+        unknown_samples = final_df.iloc[8:8 + num_samples].copy()
+        unknown_samples['Mean Absorbance'] = unknown_samples[['Replicate 1', 'Replicate 2', 'Replicate 3']].mean(axis=1)
+        unknown_samples['Protein Concentration (mg/mL)'] = (
+            (unknown_samples['Mean Absorbance'] - intercept) / slope
+        )
+        unknown_samples['Sample Volume (µL)'] = (target_concentration * final_volume) / unknown_samples['Protein Concentration (mg/mL)']
+        unknown_samples['Diluent Volume (µL)'] = final_volume - unknown_samples['Sample Volume (µL)']
+        unknown_samples.loc[
+            unknown_samples['Sample Volume (µL)'] > final_volume,
+            ['Sample Volume (µL)', 'Diluent Volume (µL)']
+        ] = [final_volume, 0]
 
-    unknown_samples = final_df.iloc[8:8 + num_samples]
-    unknown_samples['Mean Absorbance'] = unknown_samples[['Replicate 1', 'Replicate 2', 'Replicate 3']].mean(axis=1)
-    unknown_samples['Protein Concentration (mg/mL)'] = (unknown_samples['Mean Absorbance'] - intercept) / slope
+        protocol.comment(f"Normalized Unknown Samples (to {target_concentration} mg/mL in {final_volume} µL):")
+        summary = unknown_samples[['Sample', 'Protein Concentration (mg/mL)', 'Sample Volume (µL)', 'Diluent Volume (µL)']].to_string(index=False)
+        protocol.comment(f"\nNormalized sample volumes:\n{summary}")
 
+        # Write the output and image of data plot to the instrument jupyter notebook directory
+        filename = f"Gel_chemprot_output_{today_date}.csv"
+        output_file_destination_path = directory.joinpath(filename)
+        normalized_samples.to_csv(output_file_destination_path)
 
-    unknown_samples['Sample Volume (µL)'] = (target_concentration * final_volume) / unknown_samples['Protein Concentration (mg/mL)']
-    unknown_samples['Diluent Volume (µL)'] = final_volume - unknown_samples['Sample Volume (µL)']
-    unknown_samples.loc[unknown_samples['Sample Volume (µL)'] > final_volume, ['Sample Volume (µL)', 'Diluent Volume (µL)']] = [final_volume, 0]
-    protocol.comment(f"\nNormalized Unknown Samples (to {target_concentration} mg/mL in {final_volume} µL):")
-    summary = unknown_samples[['Sample', 'Protein Concentration (mg/mL)', 'Sample Volume (µL)', 'Diluent Volume (µL)']].to_string(index=False)
-    protocol.comment(f"\nNormalized sample volumes:\n{summary}")
+        # Create destination well map
+        rows = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
+        destination_wells = [f'{rows[i % 8]}{(i // 8) + 1}' for i in range(len(unknown_samples))]
 
-    normalized_samples = unknown_samples[['Sample', 'Protein Concentration (mg/mL)', 'Sample Volume (µL)', 'Diluent Volume (µL)']].reset_index().drop(columns='index')
-    # Write the output and image of data plot to the instrument jupyter notebook directory
-    filename = f"Protocol_output_{today_date}.csv"
-    output_file_destination_path = directory.joinpath(filename)
-    normalized_samples.to_csv(output_file_destination_path)
-    rows = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
-    destination_wells  = [f'{rows[i % 8]}{(i // 8)+ 1}' for i in range(len(normalized_samples))]
+        # Track tip usage state
+        current_tiprack = None
 
-    for i, row in normalized_samples.iterrows():
-        source_well = sample_locations[i]
-        normalized_volume = row['Sample Volume (µL)']
-        diluent_volume = final_volume - normalized_volume
-        destination_well = destination_wells[i]
-        p1000_multi.transfer(normalized_volume, temp_adapter[source_well], plate3[destination_well], rate=0.5, new_tip='once')
-        p1000_multi.transfer(diluent_volume, reservoir['A7'], plate3[destination_well], rate=0.5, new_tip='once')
+        def use_pipette(volume_uL):
+            nonlocal current_tiprack
+
+            if volume_uL <= 50:
+                if current_tiprack != 'partial_50':
+                    protocol.move_labware(partial_50, new_location='B3', use_gripper=True)
+                    p50_multi.configure_nozzle_layout(style=SINGLE, start="A1", tip_racks=[partial_50])
+                    current_tiprack = 'partial_50'
+                return p50_multi
+
+            elif 50 < volume_uL <= 200:
+                if current_tiprack != 'tips_200':
+                    protocol.move_labware(tips_200, new_location='B3', use_gripper=True)
+                    p1000_multi.configure_nozzle_layout(style=SINGLE, start="A1", tip_racks=[tips_200])
+                    current_tiprack = 'tips_200'
+                return p1000_multi
+
+            else:
+                if current_tiprack != 'tips_1000':
+                    protocol.move_labware(tips_1000, new_location='B3', use_gripper=True)
+                    p1000_multi.configure_nozzle_layout(style=SINGLE, start="A1", tip_racks=[tips_1000])
+                    current_tiprack = 'tips_1000'
+                return p1000_multi
+
+        # Perform sample and diluent transfers
+        for i, row in unknown_samples.iterrows():
+            source_well = sample_locations[i]
+            destination_well = destination_wells[i]
+
+            sample_vol = row['Sample Volume (µL)']
+            diluent_vol = row['Diluent Volume (µL)']
+
+            # Transfer sample
+            if sample_vol > 0:
+                pipette = use_pipette(sample_vol)
+                pipette.pick_up_tip()
+                pipette.transfer(
+                    sample_vol,
+                    temp_adapter[source_well],
+                    plate3[destination_well],
+                    rate=0.5,
+                    new_tip='never'
+                )
+                pipette.drop_tip()
+
+            # Transfer diluent
+            if diluent_vol > 0:
+                pipette = use_pipette(diluent_vol)
+                pipette.pick_up_tip()
+                pipette.transfer(
+                    diluent_vol,
+                    reservoir['A7'],
+                    plate3[destination_well],
+                    rate=0.5,
+                    new_tip='never'
+                )
+                pipette.drop_tip()
+
 
     # ---------------- Click Reaction ----------------
     protocol.comment("Running click reaction")
@@ -201,7 +265,7 @@ def run(protocol: protocol_api.ProtocolContext):
     p50_multi.configure_nozzle_layout(style=SINGLE, start="A1", tip_racks=[partial_50]) #,
     
     #Pipette rhodamine azide (A3), tbta (A5), cuso4 (A2), and tcep (A4)
-    p50_multi.transfer(1*(num_samples*2), 
+    p50_multi.transfer(1*(num_samples*1.5), 
                             temp_adapter['A3'], 
                             temp_adapter['A6'].bottom(z=0.1),
                             rate=speed,
@@ -211,7 +275,7 @@ def run(protocol: protocol_api.ProtocolContext):
                             #blow_out=True,
                             new_tip='always')
 
-    p50_multi.transfer(3*(num_samples*2), 
+    p50_multi.transfer(3*(num_samples*1.5), 
                             temp_adapter['A5'], 
                             temp_adapter['A6'],
                             mix_before=(1,10),
@@ -219,13 +283,12 @@ def run(protocol: protocol_api.ProtocolContext):
                             delay=3, 
                             new_tip='always')
 
-    p50_multi.transfer(1*(num_samples*2), 
+    p50_multi.transfer(1*(num_samples*1.5), 
                             temp_adapter['A2'], 
-                            temp_adapter['A6'],
-                            mix_before=(1,10), 
+                            temp_adapter['A6'], 
                             new_tip='always')
 
-    p50_multi.transfer(1*(num_samples*2), 
+    p50_multi.transfer(1*(num_samples*1.5), 
                             temp_adapter['A4'], 
                             temp_adapter['A6'], 
                             mix_after=(3,30),
@@ -233,58 +296,43 @@ def run(protocol: protocol_api.ProtocolContext):
 
     # Make sure the click reagents are well mixed
     click_volume = 6*(final_volume/50)
-    # Track where tip racks are currently located
-    tiprack_locations = {
-        "partial_50": "B3",  # assume starts here
-        "tips_1000": "C4",   # assume starts here
-    }
-
     def mix_click_reagents():
         volume_click_reaction = final_volume + click_volume
         location = temp_adapter['A6']
         pipette = None
-
-        positions_mixing = [1, 1, 1]  # default fallback
+        moved_partial_50 = False
+        moved_tips_1000 = False
 
         if volume_click_reaction < 100:
             positions_mixing = [1, 2, 3]
             pipette = p50_multi
-
-        elif 100 < volume_click_reaction < 200:
+        elif 100 < volume_click_reaction < 250:
             positions_mixing = [1, 4, 9]
-            if tiprack_locations["partial_50"] != "B4":
-                protocol.move_labware(partial_50, new_location="B4", use_gripper=True)
-                tiprack_locations["partial_50"] = "B4"
-            p1000_multi.configure_nozzle_layout(style=SINGLE, start="A1", tip_racks=[tips_200])
+            protocol.move_labware(labware=partial_50, new_location='B4', use_gripper=True)
+            moved_partial_50 = True
             pipette = p1000_multi
-
-        elif 200 < volume_click_reaction < 500:
+        elif 250 < volume_click_reaction < 500:
             positions_mixing = [1, 6, 11]
-            if tiprack_locations["partial_50"] != "B4":
-                protocol.move_labware(partial_50, new_location="B4", use_gripper=True)
-                tiprack_locations["partial_50"] = "B4"
-            if tiprack_locations["tips_1000"] != "B3":
-                protocol.move_labware(tips_1000, new_location="B3", use_gripper=True)
-                tiprack_locations["tips_1000"] = "B3"
-            p1000_multi.configure_nozzle_layout(style=SINGLE, start="A1", tip_racks=[tips_1000])
+            protocol.move_labware(labware=partial_50, new_location='B4', use_gripper=True)
+            moved_partial_50 = True
+            protocol.move_labware(labware=tips_1000, new_location='B3', use_gripper=True)
+            moved_tips_1000 = True
+            p1000_multi.configure_nozzle_layout(style=SINGLE, start="A1",tip_racks=[tips_1000])
             pipette = p1000_multi
-
         elif 500 < volume_click_reaction < 1000:
             positions_mixing = [1, 10, 16]
-            if tiprack_locations["partial_50"] != "B4":
-                protocol.move_labware(partial_50, new_location="B4", use_gripper=True)
-                tiprack_locations["partial_50"] = "B4"
-            if tiprack_locations["tips_1000"] != "B3":
-                protocol.move_labware(tips_1000, new_location="B3", use_gripper=True)
-                tiprack_locations["tips_1000"] = "B3"
-            p1000_multi.configure_nozzle_layout(style=SINGLE, start="A1", tip_racks=[tips_1000])
+            protocol.move_labware(labware=partial_50, new_location='B4', use_gripper=True)
+            moved_partial_50 = True
+            protocol.move_labware(labware=tips_1000, new_location='B3', use_gripper=True)
+            moved_tips_1000 = True
+            p1000_multi.configure_nozzle_layout(style=SINGLE, start="A1",tip_racks=[tips_1000])
             pipette = p1000_multi
-
         else:
+            positions_mixing = [1, 1, 1]  # Fallback
             pipette = p1000_multi
 
         # Perform mixing
-        pipette.pick_up_tip()
+        pipette.pick_up_tip()  # Optional if not done earlier
         pipette.aspirate(final_volume / 2, location.bottom(z=positions_mixing[0]))
         pipette.dispense(final_volume / 2, location.bottom(z=positions_mixing[1]))
         pipette.aspirate(final_volume / 3, location.bottom(z=positions_mixing[2]))
@@ -292,25 +340,25 @@ def run(protocol: protocol_api.ProtocolContext):
         pipette.mix(3, final_volume, location.bottom(z=positions_mixing[0]))
         pipette.drop_tip()
 
-        # Move tip racks back to original locations in correct order
-        if tiprack_locations["tips_1000"] != "C4":
-            protocol.move_labware(tips_1000, new_location="C4", use_gripper=True)
-            tiprack_locations["tips_1000"] = "C4"
-        if tiprack_locations["partial_50"] != "B3":
-            protocol.move_labware(partial_50, new_location="B3", use_gripper=True)
-            tiprack_locations["partial_50"] = "B3"
+        # Move labware back if applicable
+        if moved_tips_1000:
+            protocol.move_labware(labware=tips_1000, new_location='C4', use_gripper=True)
+        if moved_partial_50:
+            protocol.move_labware(labware=partial_50, new_location='B3', use_gripper=True)
 
     # Call the function
     mix_click_reagents()
 
+
     # Pipette the click reaction premix
-    #protocol.move_labware(labware=partial_50, new_location='B3', use_gripper=True)
+    protocol.move_labware(labware=partial_50, new_location='B3', use_gripper=True)
+    click_volume = 6*(final_volume/50)
     p50_multi.transfer(click_volume, 
                             temp_adapter['A6'], 
                             [plate3[i] for i in destination_wells],
                             rate=speed-0.1,
                             delay=2,
-                            mix_before=(1, 10),
+                            mix_before=(3, 40),
                             mix_after=(3,30),
                             new_tip='always')
 

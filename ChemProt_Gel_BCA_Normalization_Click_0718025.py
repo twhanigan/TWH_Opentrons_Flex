@@ -305,13 +305,13 @@ def run(protocol: protocol_api.ProtocolContext):
     unknown_samples['Protein Concentration (mg/mL)'] = (unknown_samples['Mean Absorbance'] - intercept) / slope
 
 
-    unknown_samples['Sample Volume (mL)'] = (target_concentration * final_volume) / unknown_samples['Protein Concentration (mg/mL)']
-    unknown_samples['Diluent Volume (mL)'] = final_volume - unknown_samples['Sample Volume (mL)']
-    unknown_samples.loc[unknown_samples['Sample Volume (mL)'] > final_volume, ['Sample Volume (mL)', 'Diluent Volume (mL)']] = [final_volume, 0]
+    unknown_samples['Sample Volume (uL)'] = (target_concentration * final_volume) / unknown_samples['Protein Concentration (mg/mL)']
+    unknown_samples['Diluent Volume (uL)'] = final_volume - unknown_samples['Sample Volume (uL)']
+    unknown_samples.loc[unknown_samples['Sample Volume (uL)'] > final_volume, ['Sample Volume (uL)', 'Diluent Volume (uL)']] = [final_volume, 0]
     protocol.comment("\nNormalized Unknown Samples (to 1 mg/mL in {final_volume} µL):")
-    print(unknown_samples[['Sample', 'Protein Concentration (mg/mL)', 'Sample Volume (mL)', 'Diluent Volume (mL)']])
+    print(unknown_samples[['Sample', 'Protein Concentration (mg/mL)', 'Sample Volume (uL)', 'Diluent Volume (uL)']])
 
-    normalized_samples = unknown_samples[['Sample', 'Protein Concentration (mg/mL)', 'Sample Volume (mL)', 'Diluent Volume (mL)']].reset_index().drop(columns='index')
+    normalized_samples = unknown_samples[['Sample', 'Protein Concentration (mg/mL)', 'Sample Volume (uL)', 'Diluent Volume (uL)']].reset_index().drop(columns='index')
     # Write the output and image of data plot to the instrument jupyter notebook directory
     filename = f"Protocol_output_{today_date}.csv"
     output_file_destination_path = directory.joinpath(filename)
@@ -321,7 +321,7 @@ def run(protocol: protocol_api.ProtocolContext):
 
     for i, row in normalized_samples.iterrows():
         source_well = sample_locations[i]
-        normalized_volume = row['Sample Volume (mL)']
+        normalized_volume = row['Sample Volume (uL)']
         diluent_volume = final_volume - normalized_volume
         destination_well = destination_wells[i]
         p1000_multi.transfer(normalized_volume, temp_adapter[source_well], plate3[destination_well], rate=0.5, new_tip='once')
