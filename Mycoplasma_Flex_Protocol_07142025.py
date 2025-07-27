@@ -13,15 +13,42 @@ requirements = {
     "apiLevel": "2.21"
 }
 
+def add_parameters(parameters):
+
+    parameters.add_int(
+        variable_name="num_samples",
+        display_name="Number of samples",
+        description="Number of input samples to be tested for mycoplasma.",
+        default=8,
+        minimum=1,
+        maximum=24
+    )
+    parameters.add_int(
+        variable_name="num_replicates",
+        display_name="Number of replicates",
+        description="Number of replicates for each sample",
+        default=1,
+        choices=[
+            {"display_name": "1", "value": 1},
+            {"display_name": "2", "value": 2},
+            {"display_name": "3", "value": 3},
+        ]
+    )
+    parameters.add_int(
+        variable_name="volume",
+        display_name="Aspirate volume",
+        description="How much to aspirate from each sample.",
+        default=20,
+        minimum=10,
+        maximum=100,
+        unit="µL"
+    )
 def run(protocol: protocol_api.ProtocolContext):
 
     # Enter the number of samples 
-    speed= 0.5
-    target_concentration = 1
     num_samples = 1
     num_replicates = 2
-    numtotalSamples = num_samples + (2*num_replicates)
-    reaction_vol = 25
+    numtotalSamples = protocol.params.num_samples + (2*num_replicates)
     mastermix_vol = 12.5
     primer_vol = 1
     sample_vol = 2.5
@@ -53,7 +80,7 @@ def run(protocol: protocol_api.ProtocolContext):
     nuclease_free_water = protocol.define_liquid(name = 'nuclease_free_water', display_color="#FFFF00")
     positive_control = protocol.define_liquid(name = 'positive_control', display_color="#FF3300")
     neg_control = protocol.define_liquid(name = 'neg_control', display_color="#FF5E00")
-    empty_epp = protocol.define_liquid(name = 'neg_control', display_color="#000011")
+    empty_epp = protocol.define_liquid(name = 'empty_eppendorf', display_color="#000011")
     loading_buff = protocol.define_liquid(name = 'loading_buff', display_color="#220011")
     sample_tubes = protocol.define_liquid(name=samples, display_color= "#230442")
 
@@ -69,18 +96,16 @@ def run(protocol: protocol_api.ProtocolContext):
     #open the thermocycler lid
     thermocycler.open_lid()
     
-    # Load pipettes
+    # Load pipettes and configure nozzle layout
     p50_multi = protocol.load_instrument('flex_8channel_50', 'left') #, tip_racks=[tips_50]
     p1000_multi = protocol.load_instrument('flex_8channel_1000', 'right',tip_racks=[tips_1000]) #, 
-
-    #Configure the p50 pipette to use single tip NOTE: this resets the pipettes tip racks!
     p50_multi.configure_nozzle_layout(style=SINGLE, start="A1",tip_racks=[partial_50])
     p1000_multi.configure_nozzle_layout(style=SINGLE, start="A1",tip_racks=[tips_1000])
 
     # assign sample locations dynamically
     sample_locations = []
     row = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
-    for i in range(num_samples):
+    for i in range(protocol.params.num_samples):
         if i < 6:  # B1 to B6
             sample_locations.append(f'B{i + 1}')
         elif i < 12:  # C1 to C6
@@ -122,39 +147,37 @@ def run(protocol: protocol_api.ProtocolContext):
     sample_well_map["neg_control"] = get_next_wells(1, num_replicates, used_wells)
 
     # allocate wells for each sample
-    for sample_idx in range(num_samples):
+    for sample_idx in range(protocol.params.num_samples):
         next_wells = get_next_wells(sample_idx + 2, num_replicates, used_wells)
         sample_well_map[f"sample_{sample_idx+1}"] = next_wells
     
     #Add the positive control and no template control to the number of samples
-
-
     # Transfer positive control to A1
-    p50_multi.distribute(2.5,
+    p50_multi.distribute(sample_vol,
                          temp_adapter['A4'],
                          [pcr_plate[well].bottom(z=0.1) for well in sample_well_map["positive_control"]],
-                         rate=speed,
+                         rate=0.5,
                          mix_before=(1, 10),
                          disposal_vol=5)
 
     # Transfer negative control to B1–B3
-    p50_multi.distribute(2.5,
+    p50_multi.distribute(sample_vol,
                          temp_adapter['A5'],
                          [pcr_plate[well].bottom(z=0.1) for well in sample_well_map["neg_control"]],
-                         rate=speed,
+                         rate=0.5,
                          mix_before=(1, 10),
                          disposal_vol=5)
     
     # Transfer samples
-    for sample_idx in range(num_samples):
+    for sample_idx in range(protocol.params.num_samples):
         tube_loc = sample_locations[sample_idx]
         wells = sample_well_map[f"sample_{sample_idx+1}"]
 
         p50_multi.distribute(
-            2.5,
+            sample_vol,
             temp_adapter[tube_loc],
             [pcr_plate[well].bottom(z=0.1) for well in wells],
-            rate=speed,
+            rate=0.5,
             mix_before=(1, 10),
             disposal_vol=5)
 
@@ -164,7 +187,7 @@ def run(protocol: protocol_api.ProtocolContext):
                             temp_adapter['A6'], 
                             new_tip='once',
                             mix_before=(1, 10),
-                            rate= speed-0.2)
+                            rate= 0.3)
 
     p1000_multi.distribute((primer_vol*numtotalSamples*num_replicates), 
                             temp_adapter['A2'].bottom(z=2), 
@@ -185,7 +208,7 @@ def run(protocol: protocol_api.ProtocolContext):
         [pcr_plate[well].bottom(z=5) for well in mastermix_wells],
         new_tip='once',
         disposal_vol=5,
-        rate=speed
+        rate=0.5
     )
 
     # Step 3: Run thermocycling conditions
