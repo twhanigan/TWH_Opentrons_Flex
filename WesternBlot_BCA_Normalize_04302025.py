@@ -12,7 +12,7 @@ import re
 metadata = {
     'protocolName': 'BCA Assay with Normalization for Western Blotting',
     'author': 'Assistant',
-    'description': 'Serial dilution of BSA standard and sample processing. This includes cooling samples to 4c, heating plate to 37c with shaking and recording a video of the whole process. Place BSA Standard in A1, Lysis buffer in A2, change the number of samples and place samples in row B starting at B1. MINIMUM Sample volumen in eppendorf tubes is 40 uL. '
+    'description': 'BCA and normalization for western blotting'
 }
 
 requirements = {
@@ -20,20 +20,51 @@ requirements = {
     "apiLevel": "2.21"
 }
 
+def add_parameters(parameters):
+
+    parameters.add_int(
+        variable_name="num_samples",
+        display_name="Number of samples",
+        description="Number of input samples to be tested for mycoplasma.",
+        default=8,
+        minimum=1,
+        maximum=24
+    )
+    parameters.add_int(
+        variable_name="standards_col",
+        display_name="standards column",
+        description="Integer of column on plate1 where standards will be diluted",
+        default=1,
+        minimum=1,
+        maximum=12
+    )
+    parameters.add_int(
+        variable_name="ug_protein",
+        display_name="µg of protein",
+        description="Amount of lysate to load for western blot",
+        default=40,
+        minimum=5,
+        maximum=100,
+        unit="µg"
+    )
+
+    parameters.add_int(
+        variable_name="final_volume",
+        display_name="final volume lysate",
+        description="Volume to normalize µg of protein in",
+        default=20,
+        minimum=10,
+        maximum=100,
+        unit="µL"
+    )
+
 def run(protocol: protocol_api.ProtocolContext):
     protocol.comment(
         "Place BSA Standard in A1, Lysis buffer in A2, tbta in A3, biotin in A4, cuso4 in A5, tcep in A6 and samples in row B")
     protocol.comment("Running the BCA assay")
 
     #Edit these
-    ug_protein = 40
-    final_volume_ul = 15 # final sample volume in in uL
-    final_volume = final_volume_ul/1000 # final sample volume in uL
-    target_concentration = ug_protein/final_volume_ul # 40 ug protein/ 15 uL final volume
-    num_samples = 10 #change this to the number of samples you need to run. The maximum is 18.
-    num_replicates = 3  # the number of replicates
-    standards_col = 2
-    position_standards = f'A{standards_col}'
+    target_concentration = protocol.params.ug_protein/protocol.params.final_volume # 40 ug protein/ 15 uL final volume
     speed= 0.35
 
     # Load modules
@@ -73,7 +104,7 @@ def run(protocol: protocol_api.ProtocolContext):
     bsa_reag_c = protocol.define_liquid(name = 'Reagent C', display_color="#4B9CD3",)
     excess_lysis = protocol.define_liquid(name='Excess Lysis Buffer', display_color="#FFC0CB")  # Pink
     loading_buffer = protocol.define_liquid(name = 'Loading Buffer', display_color="#4169E1",)
-    sample_liquids = [protocol.define_liquid(name = f'Sample {i + 1}', display_color="#FFA000",) for i in range(num_samples)]
+    sample_liquids = [protocol.define_liquid(name = f'Sample {i + 1}', display_color="#FFA000",) for i in range(protocol.params.num_samples)]
 
     # Trypsin and CaCl2 for digestion
     temp_adapter['A1'].load_liquid(liquid=bsa_standard, volume=1000)  # 20 mg/ml BSA standard
@@ -98,7 +129,7 @@ def run(protocol: protocol_api.ProtocolContext):
     # Steps 1: Add lysis buffer to column 1 of plate1. 
     p1000_multi.distribute(50, 
          reservoir['A7'],
-         plate1[position_standards],
+         plate1[f'A{protocol.params.standards_col}'],
          rate = 0.35,
          delay = 2,
          new_tip='once',
@@ -114,7 +145,7 @@ def run(protocol: protocol_api.ProtocolContext):
     # Step 4: Transfer BSA standard (20 mg/ml) to first well of column 1
     p50_multi.transfer(50,
         temp_adapter['A1'],
-        plate1[position_standards],
+        plate1[f'A{protocol.params.standards_col}'],
         rate = 0.35,
         delay = 2,
         mix_after=(3, 40),
@@ -126,20 +157,20 @@ def run(protocol: protocol_api.ProtocolContext):
     p50_multi.pick_up_tip()
     for source, dest in zip(rows[:-1], rows[1:]):
         p50_multi.transfer(50,
-                         plate1[f'{source}{standards_col}'],
-                         plate1[f'{dest}{standards_col}'],
+                         plate1[f'{source}{protocol.params.standards_col}'],
+                         plate1[f'{dest}{protocol.params.standards_col}'],
                          rate = 0.5,
                          mix_after=(3, 40),
                          new_tip='never', 
                          disposal_vol=0)
 
     # Step 6: remove excess standard from well G
-    p50_multi.aspirate(50,plate1[f'G{standards_col}'])
+    p50_multi.aspirate(50,plate1[f'G{protocol.params.standards_col}'])
     p50_multi.drop_tip()
 
     # assign sample locations dynamically
     sample_locations = []
-    for i in range(num_samples):
+    for i in range(protocol.params.num_samples):
         if i < 6:  # B1 to B6
             sample_locations.append(f'B{i + 1}')
         elif i < 12:  # C1 to C6
@@ -153,7 +184,7 @@ def run(protocol: protocol_api.ProtocolContext):
     row = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
 
     # Create a list of rows that repeats based on num_samples
-    rows = [row[i % len(row)] for i in range(num_samples)]
+    rows = [row[i % len(row)] for i in range(protocol.params.num_samples)]
 
     # Create a dynamic sample map based on the assigned sample locations
     sample_map = list(map(lambda i,j :(i,j), rows, sample_locations))
@@ -254,7 +285,7 @@ def run(protocol: protocol_api.ProtocolContext):
     p50_multi.configure_nozzle_layout(style=SINGLE, start="A1", tip_racks=[partial_50]) #, 
 
      # Define the directory path
-    directory = Path("/var/lib/jupyter/notebooks/TWH/")
+    directory = Path("/var/lib/jupyter/notebooks/Data/")
 
     # Get today's date in YYMMDD format
     today_date = datetime.date.today().strftime("%y%m%d")
@@ -316,26 +347,25 @@ def run(protocol: protocol_api.ProtocolContext):
     ss_tot = np.sum((samples_1_to_8['Mean Absorbance'] - np.mean(samples_1_to_8['Mean Absorbance'])) ** 2)
     r_squared = 1 - (ss_res / ss_tot)
 
-    unknown_samples = final_df.iloc[8:8 + num_samples]
+    unknown_samples = final_df.iloc[8:8 + protocol.params.num_samples]
     unknown_samples['Mean Absorbance'] = unknown_samples[['Replicate 1', 'Replicate 2', 'Replicate 3']].mean(axis=1)
     unknown_samples['Protein Concentration (mg/mL)'] = (unknown_samples['Mean Absorbance'] - intercept) / slope
-    unknown_samples['Sample Volume (mL)'] = (target_concentration * final_volume) / unknown_samples['Protein Concentration (mg/mL)']
-    unknown_samples['Diluent Volume (mL)'] = final_volume - unknown_samples['Sample Volume (mL)']
-    unknown_samples['Sample Volume (uL)'] = unknown_samples['Sample Volume (mL)']*1000
-    unknown_samples['Diluent Volume (uL)'] = unknown_samples['Diluent Volume (mL)']*1000
+    unknown_samples['Sample Volume (µL)'] = (target_concentration * protocol.params.final_volume) / unknown_samples['Protein Concentration (mg/mL)']
+    unknown_samples['Diluent Volume (µL)'] = protocol.params.final_volume - unknown_samples['Sample Volume (µL)']
+
     # Volume check
-    if any(unknown_samples['Sample Volume (mL)'] > final_volume):
+    if any(unknown_samples['Sample Volume (µL)'] > protocol.params.final_volume):
         protocol.comment("One or more samples exceed the maximum allowed volume for dilution.")
         raise Exception("Aborting protocol: at least one sample volume exceeds the final volume threshold.")
-    unknown_samples.loc[unknown_samples['Sample Volume (mL)'] > final_volume, ['Sample Volume (mL)', 'Diluent Volume (mL)']] = [final_volume, 0]
+    unknown_samples.loc[unknown_samples['Sample Volume (µL)'] > protocol.params.final_volume, ['Sample Volume (µL)', 'Diluent Volume (µL)']] = [protocol.params.final_volume, 0]
     protocol.comment("\nNormalized Unknown Samples (to 1 mg/mL in 500 µL):")
-    normalized_samples = unknown_samples[['Sample', 'Protein Concentration (mg/mL)', 'Sample Volume (mL)', 'Diluent Volume (mL)','Sample Volume (uL)','Diluent Volume (uL)']].reset_index().drop(columns='index')
+    normalized_samples = unknown_samples[['Sample', 'Protein Concentration (mg/mL)', 'Sample Volume (µL)','Diluent Volume (µL)']].reset_index().drop(columns='index')
 
     # Write the output and image of data plot to the instrument jupyter notebook directory
     filename = f"Protocol_output_{today_date}.csv"
     output_file_destination_path = directory.joinpath(filename)
     normalized_samples.to_csv(output_file_destination_path)
-    print(unknown_samples[['Sample', 'Protein Concentration (mg/mL)', 'Sample Volume (mL)', 'Diluent Volume (mL)','Sample Volume (uL)','Diluent Volume (uL)']])
+    print(unknown_samples[['Sample', 'Protein Concentration (mg/mL)', 'Sample Volume (µL)','Diluent Volume (µL)']])
 
     # Dilute sample in lysis buffer to 1 mg/ml on deep well plate
     rows = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
@@ -343,8 +373,8 @@ def run(protocol: protocol_api.ProtocolContext):
 
     for i, row in normalized_samples.iterrows():
         source_well = sample_locations[i]
-        normalized_volume = row['Sample Volume (uL)']
-        diluent_volume = final_volume - normalized_volume
+        normalized_volume = row['Sample Volume (µL)']
+        diluent_volume = protocol.params.final_volume - normalized_volume
         destination_well = destination_wells[i]
         p50_multi.transfer(normalized_volume, 
                     temp_adapter[source_well], 
@@ -357,17 +387,17 @@ def run(protocol: protocol_api.ProtocolContext):
                     rate=0.5, 
                     new_tip='once')
     # Add loading buffer
-    p50_multi.distribute(5,
+    p50_multi.distribute(protocol.params.final_volume/3,
                     temp_adapter['A2'],
                     [plate3[well] for well in destination_wells],
                     rate=speed,
-                    mix_after=(1, 10),
-                    disposal_vol=5)
+                    mix_after=(3, 10),
+                    disposal_vol=1,
+                    new_tip='always')
 
     # Step 3: Run thermocycling conditions
     thermocycler.close_lid()
     thermocycler.set_lid_temperature(70)
     protocol.comment('Running thermocycler for 10 minutes')
     thermocycler.set_block_temperature(70,block_max_volume=30, hold_time_minutes=10)
-    thermocycler.deactivate_block()
-    thermocycler.open_lid()
+    thermocycler.set_block_temperature(4)  # Hold at 4°C

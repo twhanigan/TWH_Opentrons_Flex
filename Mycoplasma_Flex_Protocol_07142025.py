@@ -34,24 +34,21 @@ def add_parameters(parameters):
             {"display_name": "3", "value": 3},
         ]
     )
-    parameters.add_int(
-        variable_name="volume",
-        display_name="Aspirate volume",
+    parameters.add_float(
+        variable_name="volume_sample",
+        display_name="volume sample",
         description="How much to aspirate from each sample.",
-        default=20,
-        minimum=10,
-        maximum=100,
+        default=2.5,
+        minimum=1,
+        maximum=5,
         unit="µL"
     )
 def run(protocol: protocol_api.ProtocolContext):
 
-    # Enter the number of samples 
-    num_samples = 1
-    num_replicates = 2
-    numtotalSamples = protocol.params.num_samples + (2*num_replicates)
+    # variables for run
+    numtotalSamples = protocol.params.num_samples + (2*protocol.params.num_replicates)
     mastermix_vol = 12.5
     primer_vol = 1
-    sample_vol = 2.5
     water_vol = 9
     # Step 4: Gel preparation and loading (manual step for now)
     protocol.comment("This protcol runs pcr assay for mycoplasma contamination.")
@@ -125,12 +122,12 @@ def run(protocol: protocol_api.ProtocolContext):
 
     # generate well positions for replicates placed vertically
     # start from column 1, row pairs A/B, C/D, etc.
-    def get_next_wells(start_index, num_replicates, used_wells):
-        col = 1 + (start_index // (num_rows // num_replicates))
-        row_pair_index = start_index % (num_rows // num_replicates)
+    def get_next_wells(start_index, number_replicates, used_wells):
+        col = 1 + (start_index // (num_rows // number_replicates))
+        row_pair_index = start_index % (num_rows // number_replicates)
         wells = []
-        for i in range(num_replicates):
-            row_letter = row_letters[(row_pair_index * num_replicates) + i]
+        for i in range(number_replicates):
+            row_letter = row_letters[(row_pair_index * number_replicates) + i]
             well = f"{row_letter}{col}"
             wells.append(well)
             used_wells.add(well)
@@ -141,19 +138,19 @@ def run(protocol: protocol_api.ProtocolContext):
     sample_well_map = {}
 
     # allocate wells for positive control
-    sample_well_map["positive_control"] = get_next_wells(0, num_replicates, used_wells)
+    sample_well_map["positive_control"] = get_next_wells(0, protocol.params.num_replicates, used_wells)
 
     # allocate wells for negative control
-    sample_well_map["neg_control"] = get_next_wells(1, num_replicates, used_wells)
+    sample_well_map["neg_control"] = get_next_wells(1, protocol.params.num_replicates, used_wells)
 
     # allocate wells for each sample
     for sample_idx in range(protocol.params.num_samples):
-        next_wells = get_next_wells(sample_idx + 2, num_replicates, used_wells)
+        next_wells = get_next_wells(sample_idx + 2, protocol.params.num_replicates, used_wells)
         sample_well_map[f"sample_{sample_idx+1}"] = next_wells
     
     #Add the positive control and no template control to the number of samples
     # Transfer positive control to A1
-    p50_multi.distribute(sample_vol,
+    p50_multi.distribute(protocol.params.volume_sample,
                          temp_adapter['A4'],
                          [pcr_plate[well].bottom(z=0.1) for well in sample_well_map["positive_control"]],
                          rate=0.5,
@@ -161,7 +158,7 @@ def run(protocol: protocol_api.ProtocolContext):
                          disposal_vol=5)
 
     # Transfer negative control to B1–B3
-    p50_multi.distribute(sample_vol,
+    p50_multi.distribute(protocol.params.volume_sample,
                          temp_adapter['A5'],
                          [pcr_plate[well].bottom(z=0.1) for well in sample_well_map["neg_control"]],
                          rate=0.5,
@@ -174,7 +171,7 @@ def run(protocol: protocol_api.ProtocolContext):
         wells = sample_well_map[f"sample_{sample_idx+1}"]
 
         p50_multi.distribute(
-            sample_vol,
+            protocol.params.volume_sample,
             temp_adapter[tube_loc],
             [pcr_plate[well].bottom(z=0.1) for well in wells],
             rate=0.5,
@@ -182,19 +179,19 @@ def run(protocol: protocol_api.ProtocolContext):
             disposal_vol=5)
 
     # Step 1: Distribute mastermix, primer mix, and water into PCR plate starting at row B1:
-    p1000_multi.distribute((mastermix_vol*numtotalSamples*num_replicates), 
+    p1000_multi.distribute((mastermix_vol*numtotalSamples*protocol.params.num_replicates), 
                             temp_adapter['A1'].bottom(z=2), 
                             temp_adapter['A6'], 
                             new_tip='once',
                             mix_before=(1, 10),
                             rate= 0.3)
 
-    p1000_multi.distribute((primer_vol*numtotalSamples*num_replicates), 
+    p1000_multi.distribute((primer_vol*numtotalSamples*protocol.params.num_replicates), 
                             temp_adapter['A2'].bottom(z=2), 
                             temp_adapter['A6'], 
                             new_tip='once')
 
-    p1000_multi.distribute((water_vol*numtotalSamples*num_replicates), 
+    p1000_multi.distribute((water_vol*numtotalSamples*protocol.params.num_replicates), 
                             temp_adapter['A3'].bottom(z=2), 
                             temp_adapter['A6'], 
                             mix_after=(3, 40),

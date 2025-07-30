@@ -335,7 +335,7 @@ def run(protocol: protocol_api.ProtocolContext):
     p50_multi.configure_nozzle_layout(style=SINGLE, start="A1", tip_racks=[partial_50]) #,
     
     #Pipette rhodamine azide (d2), tbta (d4), cuso4 (d1), and tcep (d3)
-    p50_multi.transfer(1*(num_samples*1.5), 
+    p50_multi.transfer(1*(num_samples*2), 
                             temp_adapter['D2'], 
                             temp_adapter['D6'],
                             rate=speed-0.1,
@@ -343,7 +343,7 @@ def run(protocol: protocol_api.ProtocolContext):
                             delay=2,
                             new_tip='once')
 
-    p50_multi.transfer(6*(num_samples*1.5), 
+    p50_multi.transfer(6*(num_samples*2), 
                             temp_adapter['D4'], 
                             temp_adapter['D6'],
                             mix_before=(1,10),
@@ -351,12 +351,12 @@ def run(protocol: protocol_api.ProtocolContext):
                             delay=3, 
                             new_tip='once')
 
-    p50_multi.transfer(2*(num_samples*1.5), 
+    p50_multi.transfer(2*(num_samples*2), 
                             temp_adapter['D1'], 
                             temp_adapter['D6'], 
                             new_tip='once')
 
-    p50_multi.transfer(2*(num_samples*1.5), 
+    p50_multi.transfer(2*(num_samples*2), 
                             temp_adapter['D3'], 
                             temp_adapter['D6'], 
                             mix_after=(3,50),
