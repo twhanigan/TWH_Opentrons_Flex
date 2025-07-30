@@ -79,7 +79,8 @@ def run(protocol: protocol_api.ProtocolContext):
     neg_control = protocol.define_liquid(name = 'neg_control', display_color="#FF5E00")
     empty_epp = protocol.define_liquid(name = 'empty_eppendorf', display_color="#000011")
     loading_buff = protocol.define_liquid(name = 'loading_buff', display_color="#220011")
-    sample_tubes = protocol.define_liquid(name=samples, display_color= "#230442")
+    sample_tubes = [protocol.define_liquid(name = f'Sample {i + 1}', display_color="#FFA000",) for i in range(protocol.params.num_samples)]
+
 
     # Assign sample/liquid positions
     temp_adapter['A1'].load_liquid(liquid=mastermix, volume=1000)  # 20 mg/ml BSA standard
