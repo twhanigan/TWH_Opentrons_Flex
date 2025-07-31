@@ -93,6 +93,7 @@ def run(protocol: protocol_api.ProtocolContext):
     
     #open the thermocycler lid
     thermocycler.open_lid()
+    temp_module.set_temperature(celsius=10)
     
     # Load pipettes and configure nozzle layout
     p50_multi = protocol.load_instrument('flex_8channel_50', 'left') #, tip_racks=[tips_50]
