@@ -226,7 +226,7 @@ def run(protocol: protocol_api.ProtocolContext):
         ],
         repetitions=1
     )
-
+    thermocycler.deactivate_lid()
     thermocycler.set_block_temperature(4)  # Hold at 4°C
     #thermocycler.open_lid()
 
