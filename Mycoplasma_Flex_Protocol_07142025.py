@@ -46,7 +46,7 @@ def add_parameters(parameters):
 def run(protocol: protocol_api.ProtocolContext):
 
     # variables for run
-    numtotalSamples = protocol.params.num_samples + (2*protocol.params.num_replicates)
+    numtotalSamples = protocol.params.num_samples*1.5 + (2*protocol.params.num_replicates)
     mastermix_vol = 12.5
     primer_vol = 1
     water_vol = 9
@@ -155,16 +155,14 @@ def run(protocol: protocol_api.ProtocolContext):
                          temp_adapter['A4'],
                          [pcr_plate[well].bottom(z=0.1) for well in sample_well_map["positive_control"]],
                          rate=0.5,
-                         mix_before=(1, 10),
-                         disposal_vol=5)
+                         mix_before=(1, 10))
 
     # Transfer negative control to B1–B3
     p50_multi.distribute(protocol.params.volume_sample,
                          temp_adapter['A5'],
                          [pcr_plate[well].bottom(z=0.1) for well in sample_well_map["neg_control"]],
                          rate=0.5,
-                         mix_before=(1, 10),
-                         disposal_vol=5)
+                         mix_before=(1, 10))
     
     # Transfer samples
     for sample_idx in range(protocol.params.num_samples):
