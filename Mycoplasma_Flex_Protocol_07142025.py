@@ -150,6 +150,7 @@ def run(protocol: protocol_api.ProtocolContext):
         next_wells = get_next_wells(sample_idx + 2, protocol.params.num_replicates, used_wells)
         sample_well_map[f"sample_{sample_idx+1}"] = next_wells
     
+    thermocycler.set_block_temperature(4)
     #Add the positive control and no template control to the number of samples
     # Transfer positive control to A1
     p50_multi.distribute(protocol.params.volume_sample,
@@ -212,7 +213,6 @@ def run(protocol: protocol_api.ProtocolContext):
     thermocycler.close_lid()
     thermocycler.set_lid_temperature(105)
     protocol.comment('Running thermocycler for 30 minutes')
-    thermocycler.set_block_temperature(4, hold_time_minutes=1)
     thermocycler.execute_profile(
         steps=[
             {'temperature': 94, 'hold_time_seconds': 120},  # Initial Denaturation

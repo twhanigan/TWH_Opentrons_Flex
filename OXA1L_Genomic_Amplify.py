@@ -110,6 +110,7 @@ def run(protocol: protocol_api.ProtocolContext):
     dmso_vol = 1
     phusion_vol = 0.5
     water_vol = reaction_vol -(sample_vol+buffer_vol+(primer_vol*2)+dmso_vol+phusion_vol)
+    thermocycler.set_block_temperature(4)  # Hold at 4°C
 
     # Step 1: Distribute mastermix and primer mix into PCR plate starting at row B1:
     p1000_multi.distribute((water_vol*numtotalSamples*num_replicates), 
@@ -229,5 +230,3 @@ def run(protocol: protocol_api.ProtocolContext):
     # Hold at 4°C
     thermocycler.set_block_temperature(4)
     
-    # Open lid
-    thermocycler.open_lid()
