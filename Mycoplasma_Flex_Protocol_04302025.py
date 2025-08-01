@@ -203,7 +203,7 @@ def run(protocol: protocol_api.ProtocolContext):
         + [
             {'temperature': 72, 'hold_time_seconds': 300}   # Final Extension, 5 min
         ],
-        repetitions=1
+        repetitions=34
     )
 
     thermocycler.set_block_temperature(4)  # Hold at 4°C
