@@ -215,16 +215,16 @@ def run(protocol: protocol_api.ProtocolContext):
     thermocycler.set_block_temperature(4, hold_time_minutes=1)
     thermocycler.execute_profile(
         steps=[
-            {'temperature': 95, 'hold_time_seconds': 180},  # Initial Denaturation
+            {'temperature': 94, 'hold_time_seconds': 120},  # Initial Denaturation
         ] + [
-            {'temperature': 95, 'hold_time_seconds': 30},   # Denaturation
-            {'temperature': 55, 'hold_time_seconds': 30},   # Annealing
-            {'temperature': 72, 'hold_time_seconds': 30},   # Extension
+            {'temperature': 94, 'hold_time_seconds': 30},   # Denaturation
+            {'temperature': 55, 'hold_time_seconds': 120},   # Annealing
+            {'temperature': 72, 'hold_time_seconds': 60},   # Extension
         ] * 35
         + [
-            {'temperature': 72, 'hold_time_seconds': 300}   # Final Extension, 5 min
+            {'temperature': 72, 'hold_time_seconds': 60}   # Final Extension, 5 min
         ],
-        repetitions=1
+        repetitions=34
     )
     thermocycler.deactivate_lid()
     thermocycler.set_block_temperature(4)  # Hold at 4°C
