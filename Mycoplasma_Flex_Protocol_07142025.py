@@ -224,7 +224,7 @@ def run(protocol: protocol_api.ProtocolContext):
         + [
             {'temperature': 72, 'hold_time_seconds': 60}   # Final Extension, 5 min
         ],
-        repetitions=34
+        repetitions=1
     )
     thermocycler.deactivate_lid()
     thermocycler.set_block_temperature(4)  # Hold at 4°C
