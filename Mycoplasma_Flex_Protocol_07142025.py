@@ -220,7 +220,7 @@ def run(protocol: protocol_api.ProtocolContext):
             {'temperature': 94, 'hold_time_seconds': 30},   # Denaturation
             {'temperature': 55, 'hold_time_seconds': 120},   # Annealing
             {'temperature': 72, 'hold_time_seconds': 60},   # Extension
-        ] * 35
+        ] * 34
         + [
             {'temperature': 72, 'hold_time_seconds': 60}   # Final Extension, 5 min
         ],
