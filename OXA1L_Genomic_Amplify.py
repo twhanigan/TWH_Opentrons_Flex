@@ -1,12 +1,6 @@
 from opentrons import protocol_api
 from opentrons.protocol_api import SINGLE, ALL
-import pandas as pd
-import numpy as np
-from sklearn.linear_model import LinearRegression
-#import matplotlib.pyplot as plt
 import subprocess
-from pathlib import Path
-import datetime
 
 metadata = {
     'protocolName': 'OXA1L PCR Reaction',
@@ -19,7 +13,6 @@ requirements = {
     "apiLevel": "2.21"
 }
 def add_parameters(parameters):
-
     parameters.add_int(
         variable_name="num_samples",
         display_name="Number of samples",
@@ -57,10 +50,10 @@ def add_parameters(parameters):
         maximum=1000,
         unit="ng/µL"
     )
+
 def run(protocol: protocol_api.ProtocolContext):
     protocol.comment(
-        "Place BSA Standard in A1, Lysis buffer in A2, tbta in A3, biotin in A4, cuso4 in A5, tcep in A6 and samples in row B")
-    protocol.comment("Running the BCA assay")
+        f"Running OXA1L PCR Reaction on {protocol.params.num_samples}")
     
     # Change these if not using 96-well
     numtotalSamples = protocol.params.num_samples + 2
