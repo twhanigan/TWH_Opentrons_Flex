@@ -9,25 +9,70 @@ from pathlib import Path
 import datetime
 
 metadata = {
-    'protocolName': 'BCA Assay with Normalization and Video Recording',
+    'protocolName': 'OXA1L PCR Reaction',
     'author': 'Assistant',
-    'description': 'Serial dilution of BSA standard and sample processing. This includes cooling samples to 4c, heating plate to 37c with shaking and recording a video of the whole process. Place BSA Standard in A1, Lysis buffer in A2, change the number of samples and place samples in row B starting at B1. MINIMUM Sample volumen in eppendorf tubes is 40 uL. '
+    'description': 'PCR Amplification of OXA1L'
 }
 
 requirements = {
     "robotType": "Flex",
     "apiLevel": "2.21"
 }
+def add_parameters(parameters):
 
+    parameters.add_int(
+        variable_name="num_samples",
+        display_name="Number of samples",
+        description="Number of input samples to be tested for mycoplasma.",
+        default=8,
+        minimum=1,
+        maximum=24
+    )
+    parameters.add_int(
+        variable_name="num_replicates",
+        display_name="Number of replicates",
+        description="Number of replicates for each sample",
+        default=1,
+        choices=[
+            {"display_name": "1", "value": 1},
+            {"display_name": "2", "value": 2},
+            {"display_name": "3", "value": 3},
+        ]
+    )
+    parameters.add_float(
+        variable_name="reaction_vol",
+        display_name="reaction volume",
+        description="Volume of phusion reaction",
+        default=50,
+        minimum=1,
+        maximum=200,
+        unit="µL"
+    )
+    parameters.add_float(
+        variable_name="sample_conc",
+        display_name="sample concentration",
+        description="Concentration of samples",
+        default=100,
+        minimum=1,
+        maximum=1000,
+        unit="ng/µL"
+    )
 def run(protocol: protocol_api.ProtocolContext):
     protocol.comment(
         "Place BSA Standard in A1, Lysis buffer in A2, tbta in A3, biotin in A4, cuso4 in A5, tcep in A6 and samples in row B")
     protocol.comment("Running the BCA assay")
     
-    num_samples = 7 #change this to the number of samples you need to run. The maximum is 18.
     # Change these if not using 96-well
-    num_rows = 8  # A-H
-    num_replicates = 3  # the number of replicates
+    numtotalSamples = protocol.params.num_samples + 2
+    sample_vol  = 250/protocol.params.sample_conc
+    buffer_vol = 10
+    primer_vol = 2.5
+    dmso_vol = 1
+    phusion_vol = 0.5
+    speed= 0.35
+    dntp_vol = 1
+    mm_vol = protocol.params.reaction_vol -sample_vol
+    water_vol = protocol.params.reaction_vol -(sample_vol+buffer_vol+dntp_vol+(primer_vol*2)+dmso_vol+phusion_vol)
 
     #Start recording the video
     video_process = subprocess.Popen(["python3", "/var/lib/jupyter/notebooks/record_video.py"])
@@ -44,20 +89,17 @@ def run(protocol: protocol_api.ProtocolContext):
 
     #set the temp module to 0c
     temp_module.set_temperature(celsius=10)
+    thermocycler.open_lid()
+    thermocycler.set_block_temperature(4)  # Hold at 4°C
     
     # Load labware
-    tips_50 = protocol.load_labware('opentrons_flex_96_filtertiprack_50ul', 'A4')
-    partial_50 = protocol.load_labware(load_name="opentrons_flex_96_filtertiprack_50ul",location="A3")
-    tips_200 = protocol.load_labware('opentrons_flex_96_filtertiprack_200ul', 'B4')
-    partial_200 = protocol.load_labware(load_name="opentrons_flex_96_filtertiprack_200ul",location="B3")
+    tips_50 = protocol.load_labware('opentrons_flex_96_filtertiprack_50ul', 'A2')
+    tips_200 = protocol.load_labware('opentrons_flex_96_filtertiprack_200ul', 'A3')
+    tips_1000 = protocol.load_labware(load_name="opentrons_flex_96_filtertiprack_1000ul",location="B3")
     reservoir = protocol.load_labware('nest_12_reservoir_15ml', 'C2')
 
     # Load PCR plate on thermocycler
     pcr_plate = thermocycler.load_labware('opentrons_96_wellplate_200ul_pcr_full_skirt')
-    
-    # Load reagent tubes on heater shaker with adapter
-    temp_module = heater_shaker.load_labware(
-        'opentrons_24_aluminumblock_nest_2ml_screwcap')
     
     # Liquid definitionss
     OXA1L_F_Primer = protocol.define_liquid(name = 'OXA1L_F_Primer', display_color="#704848",)
@@ -67,144 +109,169 @@ def run(protocol: protocol_api.ProtocolContext):
     ddH2O = protocol.define_liquid(name = 'ddH2O', display_color="#704900",)
     DMSO = protocol.define_liquid(name = 'DMSO', display_color="#704300",)
     dNTPs = protocol.define_liquid(name='dNTPs', display_color="#FFC0CB")  # Pink
-
-    sample_liquids = [protocol.define_liquid(name = f'Sample {i + 1}', display_color="#FFA000",) for i in range(num_samples)]
-
-    temp_adapter['A1'].load_liquid(liquid=OXA1L_F_Primer, volume=1500) #click
-    temp_adapter['A2'].load_liquid(liquid=OXA1L_R_Primer, volume=1500) #click
-    temp_adapter['A3'].load_liquid(liquid=HF_Buffer, volume=1500) #click
-    temp_adapter['A4'].load_liquid(liquid=Phusion, volume=1500) #click
-    temp_adapter['A5'].load_liquid(liquid=ddH2O, volume=1500) #click
+    positive_control = protocol.define_liquid(name = 'positive_control', display_color="#FF3300")
+    neg_control = protocol.define_liquid(name = 'neg_control', display_color="#FF5E00")
+    empty_epp = protocol.define_liquid(name = 'empty_eppendorf', display_color="#000011")
+    sample_tubes = [protocol.define_liquid(name = f'Sample {i + 1}', display_color="#FFA000",) for i in range(protocol.params.num_samples)]
+    
+    temp_adapter['A1'].load_liquid(liquid=ddH2O, volume=1500) #click
+    temp_adapter['A2'].load_liquid(liquid=HF_Buffer, volume=1500) #click
+    temp_adapter['A3'].load_liquid(liquid=dNTPs, volume=1500) #click
+    temp_adapter['A4'].load_liquid(liquid=OXA1L_F_Primer, volume=1500) #click
+    temp_adapter['A5'].load_liquid(liquid=OXA1L_R_Primer, volume=1500) #click
     temp_adapter['A6'].load_liquid(liquid=DMSO, volume=1500) #click
-    temp_adapter['B1'].load_liquid(liquid=dNTPs, volume=1500) #click
+    temp_adapter['B1'].load_liquid(liquid=Phusion, volume=1500) #click
+    temp_adapter['B2'].load_liquid(liquid=positive_control, volume=1000)  # Additional lysis buffer for SP3
+    temp_adapter['B3'].load_liquid(liquid=neg_control, volume=1000) 
+    temp_adapter['B4'].load_liquid(liquid=empty_epp, volume=1000) 
 
     # Load pipettes
-    p50_multi = protocol.load_instrument('flex_8channel_50', 'left', tip_racks=[tiprack_50])
-    p1000_multi = protocol.load_instrument('flex_8channel_1000', 'right', tip_racks=[tiprack_200])
+    p50_multi = protocol.load_instrument('flex_8channel_50', 'left')
+    p1000_multi = protocol.load_instrument('flex_8channel_1000', 'right')
+    p50_multi.configure_nozzle_layout(style=SINGLE, start="A1",tip_racks=[tips_50])
+    p1000_multi.configure_nozzle_layout(style=SINGLE, start="A1",tip_racks=[tips_1000])
     
-    # Open thermocycler lid
-    thermocycler.open_lid()
-    
-        # assign sample locations dynamically
+    # assign sample locations dynamically
+    if protocol.params.num_samples > 12:
+        raise ValueError("Too many samples: only 12 wells available in rows C and D (C1–C6 and D1–D6).")
     sample_locations = []
-    row = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
-    for i in range(num_samples):
-        if i < 6:  # B1 to B6
-            sample_locations.append(f'B{i + 1}')
-        elif i < 12:  # C1 to C6
-            sample_locations.append(f'C{i - 5}')
-        elif i < 18:  # D1 to D6
-            sample_locations.append(f'D{i - 11}')
-        elif i < 23:
-            sample_locations.append(f'A{i - 16}')  # Stop if we exceed the number of available rows/columns
-        else:
-            print('Too many samples')
+    for i in range(protocol.params.num_samples):
+            row = 'C' if i < 6 else 'D'
+            col = (i % 6) + 1
+            sample_locations.append(f"{row}{col}")    
 
-    #Add the positive control and no template control to the number of samples
-    numtotalSamples = num_samples + 2
+    # define row letters in order
     samples = [temp_adapter[i] for i in sample_locations]
-    sample_vol  = 2
-    reaction_vol = 50
-    buffer_vol = 10
-    primer_vol = 2.5
-    dmso_vol = 1
-    phusion_vol = 0.5
-    water_vol = reaction_vol -(sample_vol+buffer_vol+(primer_vol*2)+dmso_vol+phusion_vol)
-    thermocycler.set_block_temperature(4)  # Hold at 4°C
+    row_letters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
+    num_rows = len(row_letters)
+    num_columns = 12
 
-    # Step 1: Distribute mastermix and primer mix into PCR plate starting at row B1:
-    p1000_multi.distribute((water_vol*numtotalSamples*num_replicates), 
-                            ddH2O, 
-                            temp_adapter['B2'], 
-                            mix_after=(3, 40),
-                            new_tip='once')
+    # generate well positions for replicates placed vertically
+    # start from column 1, row pairs A/B, C/D, etc.
+    def get_next_wells(start_index, number_replicates, used_wells):
+        col = 1 + (start_index // (num_rows // number_replicates))
+        row_pair_index = start_index % (num_rows // number_replicates)
+        wells = []
+        for i in range(number_replicates):
+            row_letter = row_letters[(row_pair_index * number_replicates) + i]
+            well = f"{row_letter}{col}"
+            wells.append(well)
+            used_wells.add(well)
+        return wells
 
-    p1000_multi.distribute((primer_vol*numtotalSamples*num_replicates), 
-                            OXA1L_F_Primer, 
-                            temp_adapter['B2'], 
-                            new_tip='once')
+    # create mapping of samples and controls
+    used_wells = set()
+    sample_well_map = {}
 
-    p1000_multi.distribute((primer_vol*numtotalSamples*num_replicates), 
-                            OXA1L_R_Primer, 
-                            temp_adapter['B2'], 
-                            new_tip='once')
+    # allocate wells for positive control
+    sample_well_map["positive_control"] = get_next_wells(0, protocol.params.num_replicates, used_wells)
 
-    p1000_multi.distribute((buffer_vol*numtotalSamples*num_replicates), 
-                            HF_Buffer, 
-                            temp_adapter['B2'], 
-                            new_tip='once',
+    # allocate wells for negative control
+    sample_well_map["neg_control"] = get_next_wells(1, protocol.params.num_replicates, used_wells)
+
+    # allocate wells for each sample
+    for sample_idx in range(protocol.params.num_samples):
+        next_wells = get_next_wells(sample_idx + 2, protocol.params.num_replicates, used_wells)
+        sample_well_map[f"sample_{sample_idx+1}"] = next_wells
+    
+    thermocycler.set_block_temperature(4)
+    #Add the positive control and no template control to the number of samples
+    # Transfer positive control to A1
+    p50_multi.distribute(sample_vol,
+                         temp_adapter['B2'],
+                         [pcr_plate[well].bottom(z=0.1) for well in sample_well_map["positive_control"]],
+                         rate=0.5,
+                         mix_before=(1, 10))
+
+    # Transfer negative control to B1–B3
+    p50_multi.distribute(sample_vol,
+                         temp_adapter['B3'],
+                         [pcr_plate[well].bottom(z=0.1) for well in sample_well_map["neg_control"]],
+                         rate=0.5,
+                         mix_before=(1, 10))
+    
+    # Transfer samples
+    for sample_idx in range(protocol.params.num_samples):
+        tube_loc = sample_locations[sample_idx]
+        wells = sample_well_map[f"sample_{sample_idx+1}"]
+        p50_multi.distribute(
+            sample_vol,
+            temp_adapter[tube_loc],
+            [pcr_plate[well].bottom(z=0.1) for well in wells],
+            rate=0.5,
+            mix_before=(1, 5),
+            disposal_vol=1)
+    
+    # Make mastermix in empty eppendorf:
+    p1000_multi.distribute((water_vol*numtotalSamples*protocol.params.num_replicates), 
+                            temp_adapter['A1'], 
+                            temp_adapter['B4'],
+                            rate=0.5, 
+                            new_tip='always')
+
+    p1000_multi.distribute((buffer_vol*numtotalSamples*protocol.params.num_replicates), 
+                            temp_adapter['A2'], 
+                            temp_adapter['B4'], 
+                            new_tip='always',
+                            mix_before=(1, 20),
+                            rate=speed-0.1,
+                            delay=2)
+   
+    p50_multi.distribute((dntp_vol*numtotalSamples*protocol.params.num_replicates), 
+                            temp_adapter['A3'], 
+                            temp_adapter['B4'], 
+                            new_tip='always',
                             mix_before=(1, 10),
-                            rate= speed)
+                            rate=0.5)
+
+    p50_multi.distribute((primer_vol*numtotalSamples*protocol.params.num_replicates), 
+                            temp_adapter['A4'], 
+                            temp_adapter['B4'], 
+                            rate=0.5,
+                            mix_before=(1,10),
+                            new_tip='always')
+
+    p50_multi.distribute((primer_vol*numtotalSamples*protocol.params.num_replicates), 
+                            temp_adapter['A5'], 
+                            temp_adapter['B4'],
+                            rate=0.5,
+                            mix_before=(1,10), 
+                            new_tip='always')
     
-    p1000_multi.distribute((dmso_vol*numtotalSamples*num_replicates), 
-                            DMSO, 
-                            temp_adapter['B2'], 
-                            new_tip='once')
+    p50_multi.distribute((dmso_vol*numtotalSamples*protocol.params.num_replicates), 
+                            temp_adapter['A6'], 
+                            temp_adapter['B4'],
+                            mix_before=(1, 10), 
+                            new_tip='always',
+                            rate=speed)
 
-    p1000_multi.distribute((dntp_vol*numtotalSamples*num_replicates), 
-                            dNTPs, 
-                            temp_adapter['B2'], 
-                            new_tip='once',
-                            mix_before=(1, 10),
-                            rate= speed)
+    p50_multi.distribute((phusion_vol*numtotalSamples*protocol.params.num_replicates), 
+                            temp_adapter['B1'], 
+                            temp_adapter['B4'], 
+                            mix_before=(1,3),
+                            rate = speed-0.1,
+                            delay = 2,
+                            new_tip='always')
 
-    p1000_multi.distribute((phusion_vol*numtotalSamples*num_replicates), 
-                            Phusion, 
-                            temp_adapter['B2'], 
-                            new_tip='once')
 
-    #pipette the  samples
-    total_wells = []
-    for index, tube in enumerate(sample_locations):
-        row_index = (index + 2) % len(row)  # Start at C (index 2)
-        row_letter = row[row_index]
-        column_block = 1 + 3 * (index // 6)  # Changes after C-H-A-B cycle
-        destination_wells = [f'{row_letter}{column_block + i}' for i in range(num_replicates)]
-        p50_multi.distribute(5,
-                             temp_adapter[tube],
-                             [pcr_plate[well].bottom(z=0.1) for well in destination_wells],
-                             rate=speed,
-                             mix_before=(1, 10),
-                             disposal_vol=5)
-
-    #Configure the p50 pipette to use single tip NOTE: this resets the pipettes tip racks!
-    p50_multi.configure_nozzle_layout(style=ALL, start="A1",tip_racks=[tips_50])
-
-    # Determine columns with sample and control and pipette the pcr reagent mix
-    loadingbuff_steps = (num_samples + 2)   # Total wells (samples + controls) * replicates
-    rounded = ((loadingbuff_steps) // 8 * num_replicates) + num_replicates
-    destination_cols = [f'A{i}' for i in range(1,rounded+1)]
-
-    p50_multi.distribute(16, 
-                            reservoir['A1'],
-                            [pcr_plate[col].bottom(z=0.1) for col in destination_cols],
-                            new_tip='once')
-    # Transfer reagents
-    # 1. Transfer OXA1L_F (2.5 μL)
-    p50_multi.transfer(2.5, temp_module['A1'], pcr_plate.columns()[0], new_tip='once')
-    
-    # 2. Transfer OXA1L_R (2.5 μL)
-    p50_multi.transfer(2.5, temp_module['A2'], pcr_plate.columns()[0], new_tip='once')
-    
-    # 3. Transfer Phusion buffer (10 μL)
-    p50_multi.transfer(10, temp_module['A3'], pcr_plate.columns()[0], new_tip='once')
-    
-    # 4. Transfer dNTP mix (1 μL)
-    p50_multi.transfer(1, temp_module['A4'], pcr_plate.columns()[0], new_tip='once')
-    
-    # 5. Transfer Phusion polymerase (0.5 μL)
-    p50_multi.transfer(0.5, temp_module['A5'], pcr_plate.columns()[0], new_tip='once')
-    
-    # 6. Transfer H2O (31.5 μL)
-    p50_multi.transfer(31.5, temp_module['A6'], pcr_plate.columns()[0], new_tip='once')
-
+    # Transfer mastermix
+    mastermix_wells = [well for key, wells in sample_well_map.items() for well in wells]
+    p1000_multi.distribute(
+        mm_vol,
+        temp_adapter['B4'],
+        [pcr_plate[well].bottom(z=5) for well in mastermix_wells],
+        new_tip='always',
+        disposal_vol=5,
+        rate=0.5
+    )
     # Close thermocycler lid and set temperature
+    thermocycler.set_lid_temperature(105)
     thermocycler.close_lid()
-    
+
     # 7. Run PCR cycles
     # Initial denaturation
     thermocycler.execute_profile(
-        steps=[{'temperature': 98, 'hold_time_seconds': 15}],
+        steps=[{'temperature': 98, 'hold_time_seconds': 30}],
         repetitions=1,
         block_max_volume=50
     )
@@ -213,7 +280,7 @@ def run(protocol: protocol_api.ProtocolContext):
     thermocycler.execute_profile(
         steps=[
             {'temperature': 98, 'hold_time_seconds': 10},
-            {'temperature': 59, 'hold_time_seconds': 15},
+            {'temperature': 60, 'hold_time_seconds': 15},
             {'temperature': 72, 'hold_time_seconds': 150}
         ],
         repetitions=34,
@@ -227,6 +294,11 @@ def run(protocol: protocol_api.ProtocolContext):
         block_max_volume=50
     )
     
+    # Stop video recording after the main task is completed
+    video_process.terminate()
+    
     # Hold at 4°C
     thermocycler.set_block_temperature(4)
     
+    # Step 4: Gel preparation and loading (manual step for now)
+    protocol.comment("After PCR, analyze products on a 0.75% agarose gel stained with ethidium bromide")

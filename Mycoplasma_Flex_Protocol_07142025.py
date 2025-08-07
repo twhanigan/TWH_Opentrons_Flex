@@ -150,9 +150,10 @@ def run(protocol: protocol_api.ProtocolContext):
         next_wells = get_next_wells(sample_idx + 2, protocol.params.num_replicates, used_wells)
         sample_well_map[f"sample_{sample_idx+1}"] = next_wells
     
+    # cool the thermocycler
     thermocycler.set_block_temperature(4)
-    #Add the positive control and no template control to the number of samples
-    # Transfer positive control to A1
+
+    #Add the positive/negative control
     p50_multi.distribute(protocol.params.volume_sample,
                          temp_adapter['A4'],
                          [pcr_plate[well].bottom(z=0.1) for well in sample_well_map["positive_control"]],
@@ -170,14 +171,13 @@ def run(protocol: protocol_api.ProtocolContext):
     for sample_idx in range(protocol.params.num_samples):
         tube_loc = sample_locations[sample_idx]
         wells = sample_well_map[f"sample_{sample_idx+1}"]
-
         p50_multi.distribute(
             protocol.params.volume_sample,
             temp_adapter[tube_loc],
             [pcr_plate[well].bottom(z=0.1) for well in wells],
             rate=0.5,
-            mix_before=(1, 10),
-            disposal_vol=5)
+            mix_before=(1, 5),
+            disposal_vol=1)
 
     # Step 1: Distribute mastermix, primer mix, and water into PCR plate starting at row B1:
     p1000_multi.distribute((mastermix_vol*numtotalSamples*protocol.params.num_replicates), 
@@ -213,19 +213,35 @@ def run(protocol: protocol_api.ProtocolContext):
     thermocycler.close_lid()
     thermocycler.set_lid_temperature(105)
     protocol.comment('Running thermocycler for 30 minutes')
+    # Initial Denaturation
     thermocycler.execute_profile(
         steps=[
-            {'temperature': 94, 'hold_time_seconds': 120},  # Initial Denaturation
-        ] + [
-            {'temperature': 94, 'hold_time_seconds': 30},   # Denaturation
-            {'temperature': 55, 'hold_time_seconds': 120},   # Annealing
-            {'temperature': 72, 'hold_time_seconds': 60},   # Extension
-        ] * 34
-        + [
-            {'temperature': 72, 'hold_time_seconds': 60}   # Final Extension, 5 min
+            {'temperature': 94, 'hold_time_seconds': 120},
         ],
-        repetitions=1
+        repetitions=1,
+        block_max_volume=25
     )
+
+    # PCR Cycles (34x)
+    thermocycler.execute_profile(
+        steps=[
+            {'temperature': 94, 'hold_time_seconds': 30},   # Denaturation
+            {'temperature': 55, 'hold_time_seconds': 120},  # Annealing
+            {'temperature': 72, 'hold_time_seconds': 60},   # Extension
+        ],
+        repetitions=34,
+        block_max_volume=25
+    )
+
+    # Final Extension
+    thermocycler.execute_profile(
+        steps=[
+            {'temperature': 72, 'hold_time_seconds': 60},
+        ],
+        repetitions=1,
+        block_max_volume=25
+    )
+
     thermocycler.deactivate_lid()
     thermocycler.set_block_temperature(4)  # Hold at 4°C
     #thermocycler.open_lid()

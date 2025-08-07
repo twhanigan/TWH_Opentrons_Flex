@@ -335,7 +335,7 @@ def run(protocol: protocol_api.ProtocolContext):
                             mix_after=(3, 40), 
                             new_tip='always')
     thermocycler.close_lid()
-    thermocycler.set_block_temperature(95)  # Hold at 4°C
+    thermocycler.set_block_temperature(95)
     protocol.delay(minutes=5)
     thermocycler.set_block_temperature(4)  # Hold at 4°C
 
