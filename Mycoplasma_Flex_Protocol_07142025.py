@@ -62,7 +62,7 @@ def run(protocol: protocol_api.ProtocolContext):
     temp_module = protocol.load_module('temperature module gen2', 'C1')
     mag_block = protocol.load_module('magneticBlockV1', 'D2')
     chute = protocol.load_waste_chute()
-    temp_adapter = temp_module.load_labware('opentrons_24_aluminumblock_nest_1.5ml_screwcap')
+    temp_adapter = temp_module.load_labware('opentrons_24_aluminumblock_nest_1.5ml_snapcap')
     reservoir = protocol.load_labware('nest_12_reservoir_15ml', 'C2')
 
     # Load labware
