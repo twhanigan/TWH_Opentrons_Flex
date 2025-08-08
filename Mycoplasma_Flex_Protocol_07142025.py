@@ -210,8 +210,12 @@ def run(protocol: protocol_api.ProtocolContext):
     )
 
     # Step 3: Run thermocycling conditions
-    thermocycler.close_lid()
     thermocycler.set_lid_temperature(105)
+    thermocycler.close_lid()
+
+    # Stop video recording after the main task is completed
+    video_process.terminate()
+    
     protocol.comment('Running thermocycler for 30 minutes')
     # Initial Denaturation
     thermocycler.execute_profile(
@@ -246,8 +250,5 @@ def run(protocol: protocol_api.ProtocolContext):
     thermocycler.set_block_temperature(4)  # Hold at 4°C
     #thermocycler.open_lid()
 
-    # Stop video recording after the main task is completed
-    video_process.terminate()
-    
     # Step 4: Gel preparation and loading (manual step for now)
     protocol.comment("After PCR, analyze products on a 2% agarose gel stained with ethidium bromide")

@@ -207,7 +207,7 @@ def run(protocol: protocol_api.ProtocolContext):
                             temp_adapter['B4'], 
                             new_tip='always',
                             mix_before=(1, 20),
-                            rate=speed-0.1,
+                            rate=speed-0.25,
                             delay=2)
    
     p50_multi.distribute((dntp_vol*numtotalSamples*protocol.params.num_replicates), 
@@ -215,6 +215,7 @@ def run(protocol: protocol_api.ProtocolContext):
                             temp_adapter['B4'], 
                             new_tip='always',
                             mix_before=(1, 10),
+                            disposal_vol=1,
                             rate=0.5)
 
     p50_multi.distribute((primer_vol*numtotalSamples*protocol.params.num_replicates), 
@@ -222,6 +223,7 @@ def run(protocol: protocol_api.ProtocolContext):
                             temp_adapter['B4'], 
                             rate=0.5,
                             mix_before=(1,10),
+                            disposal_vol=1,
                             new_tip='always')
 
     p50_multi.distribute((primer_vol*numtotalSamples*protocol.params.num_replicates), 
@@ -229,6 +231,7 @@ def run(protocol: protocol_api.ProtocolContext):
                             temp_adapter['B4'],
                             rate=0.5,
                             mix_before=(1,10), 
+                            disposal_vol=1,
                             new_tip='always')
     
     p50_multi.distribute((dmso_vol*numtotalSamples*protocol.params.num_replicates), 
@@ -243,6 +246,7 @@ def run(protocol: protocol_api.ProtocolContext):
                             temp_adapter['B4'], 
                             mix_before=(1,3),
                             rate = speed-0.1,
+                            disposal_vol=1,
                             delay = 2,
                             new_tip='always')
 
@@ -255,11 +259,15 @@ def run(protocol: protocol_api.ProtocolContext):
         [pcr_plate[well].bottom(z=5) for well in mastermix_wells],
         new_tip='always',
         disposal_vol=5,
-        rate=0.5
-    )
+        rate=speed-.2,
+        delay=2)
+
     # Close thermocycler lid and set temperature
     thermocycler.set_lid_temperature(105)
     thermocycler.close_lid()
+
+    # Stop video recording after the main task is completed
+    video_process.terminate()
 
     # 7. Run PCR cycles
     # Initial denaturation
@@ -287,10 +295,8 @@ def run(protocol: protocol_api.ProtocolContext):
         block_max_volume=50
     )
     
-    # Stop video recording after the main task is completed
-    video_process.terminate()
-    
     # Hold at 4°C
+    thermocycler.deactivate_lid()
     thermocycler.set_block_temperature(4)
     
     # Step 4: Gel preparation and loading (manual step for now)
