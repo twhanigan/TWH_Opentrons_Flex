@@ -18,20 +18,52 @@ requirements = {
     "apiLevel": "2.21"
 }
 
+def add_parameters(parameters):
+
+    parameters.add_int(
+        variable_name="num_samples",
+        display_name="Number of samples",
+        description="Number of input samples to be tested for mycoplasma.",
+        default=10,
+        minimum=1,
+        maximum=24
+    )
+    parameters.add_int(
+        variable_name="standards_col",
+        display_name="standards column",
+        description="Integer of column on plate1 where standards will be diluted",
+        default=1,
+        minimum=1,
+        maximum=12
+    )
+    parameters.add_float(
+        variable_name="target_concentration",
+        display_name="Target protein concentration",
+        description="Concentration of normalized lysate in click reaction",
+        default=1.5,
+        minimum=1,
+        maximum=2.5,
+        unit="µg/µL"
+    )
+
+    parameters.add_int(
+        variable_name="final_volume",
+        display_name="final volume lysate",
+        description="Volume to normalize µg of protein in",
+        default=50,
+        minimum=50,
+        maximum=500,
+        unit="µL"
+    )
 def run(protocol: protocol_api.ProtocolContext):
     protocol.comment(
         "Place BSA Standard in A1, Lysis buffer in A2, tbta in A3, biotin in A4, cuso4 in A5, tcep in A6 and samples in row B")
     protocol.comment("Running the BCA assay")
-
-    target_concentration = 1.5 #mg/ml
-    final_volume = 50 # uL
-    num_samples = 10 # change this to the number of samples you need to run. The maximum is 18.
     num_rows = 8  # A-H
-    num_replicates = 3  # the number of replicates
     speed= 0.3 #Speed of pipetting NP40 lysis buffer=0.35, 2M Urea in EPPS=0.3
 
     #Start recording the video
-    video_process = subprocess.Popen(["python3", "/var/lib/jupyter/notebooks/record_video.py"])
+    video_process = subprocess.Popen(["python3", "/var/lib/jupyter/notebooks/record_video_chemprot.py"])
 
     # Load modules
     heater_shaker = protocol.load_module('heaterShakerModuleV1', 'D1')
@@ -70,7 +102,7 @@ def run(protocol: protocol_api.ProtocolContext):
     tbta = protocol.define_liquid(name = 'tbta', display_color="#701100",)
     loading_buffer = protocol.define_liquid(name = 'Loading Buffer', display_color="#4169E1",)
     empty = protocol.define_liquid(name = 'empty', display_color="#FFFFFF")
-    sample_liquids = [protocol.define_liquid(name = f'Sample {i + 1}', display_color="#FFA000",) for i in range(num_samples)]
+    sample_liquids = [protocol.define_liquid(name = f'Sample {i + 1}', display_color="#FFA000",) for i in range(protocol.params.num_samples)]
 
     # Reservoir assignments for washes and digestion
     reservoir['A1'].load_liquid(liquid=bsa_reag_a, volume=20000)  
@@ -96,7 +128,7 @@ def run(protocol: protocol_api.ProtocolContext):
     # Steps 1: Add lysis buffer to column 1 of plate1. 
     p1000_multi.distribute(50, 
          reservoir['A7'],
-         plate1['A1'],
+         plate1[f'A{protocol.params.standards_col}'],
          rate = speed,
          mix_before=(1, 50),
          delay = 2,
@@ -108,7 +140,7 @@ def run(protocol: protocol_api.ProtocolContext):
     # Step 4: Transfer BSA standard (20 mg/ml) to first well of column 1
     p50_multi.transfer(50,
         temp_adapter['A1'],
-        plate1['A1'],
+        plate1[f'A{protocol.params.standards_col}'],
         rate = 0.35,
         delay = 2,
         mix_after=(3, 40),
@@ -119,20 +151,20 @@ def run(protocol: protocol_api.ProtocolContext):
     p50_multi.pick_up_tip()
     for source, dest in zip(rows[:-1], rows[1:]):
         p50_multi.transfer(50,
-                         plate1[f'{source}1'],
-                         plate1[f'{dest}1'],
+                         plate1[f'{source}{protocol.params.standards_col}'],
+                         plate1[f'{dest}{protocol.params.standards_col}'],
                          rate = 0.5,
                          mix_after=(3, 40),
                          new_tip='never', 
                          disposal_vol=0)
 
     # Step 6: remove excess standard from well G
-    p50_multi.aspirate(50,plate1['G1'])
+    p50_multi.aspirate(50,plate1[f'G{protocol.params.standards_col}'])
     p50_multi.drop_tip()
 
     # assign sample locations dynamically
     sample_locations = []
-    for i in range(num_samples):
+    for i in range(protocol.params.num_samples):
         if i < 6:  # B1 to B6
             sample_locations.append(f'B{i + 1}')
         elif i < 12:  # C1 to C6
@@ -145,13 +177,13 @@ def run(protocol: protocol_api.ProtocolContext):
     # Predefined list of letters A-H
     row = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
 
-    # Create a list of rows that repeats based on num_samples
-    rows = [row[i % len(row)] for i in range(num_samples)]
+    # Create a list of rows that repeats based on protocol.params.num_samples
+    rows = [row[i % len(row)] for i in range(protocol.params.num_samples)]
 
     # Create a dynamic sample map based on the assigned sample locations
     sample_map = list(map(lambda i,j :(i,j), rows, sample_locations))
 
-# Iterate over the sample_map list
+    # Iterate over the sample_map list
     for index, (row, tube) in enumerate(sample_map):
         if index < 8:
             base_column = 4 + (index // 8)  # This will determine the starting column for each row
@@ -176,7 +208,7 @@ def run(protocol: protocol_api.ProtocolContext):
 
     #Step 10: Pipette triplicate of controls from plate1 column 1 to plate2 columns 1,2,3 
     p50_multi.distribute(5, 
-                        plate1['A1'], 
+                        plate1[f'A{protocol.params.standards_col}'], 
                         [plate2[f'A{i}'].bottom(z=0.1) for i in range(1, 4)],
                         rate= speed,
                         mix_before=(1, 10),
@@ -224,7 +256,7 @@ def run(protocol: protocol_api.ProtocolContext):
 
     # ---------------- Normalizing BCA Assay ----------------
     # Tell the user to load BCA assay data
-    protocol.comment("Place BCA assay absorbance data in /var/lib/jupyter/notebooks/Data, load new deep well plate into flex B2 (where BCA plate was), and new tube rack into A2 (with excess lysis buffer in A1 and empty falcon in A2)")
+    protocol.comment("Place BCA assay absorbance data in /var/lib/jupyter/notebooks/Data")
 
     # Pause the protocol until the user loads the file to /var/lib/jupyter/notebooks
     protocol.pause()
@@ -300,15 +332,15 @@ def run(protocol: protocol_api.ProtocolContext):
     ss_tot = np.sum((samples_1_to_8['Mean Absorbance'] - np.mean(samples_1_to_8['Mean Absorbance'])) ** 2)
     r_squared = 1 - (ss_res / ss_tot)
 
-    unknown_samples = final_df.iloc[8:8 + num_samples]
+    unknown_samples = final_df.iloc[8:8 + protocol.params.num_samples]
     unknown_samples['Mean Absorbance'] = unknown_samples[['Replicate 1', 'Replicate 2', 'Replicate 3']].mean(axis=1)
     unknown_samples['Protein Concentration (mg/mL)'] = (unknown_samples['Mean Absorbance'] - intercept) / slope
 
 
-    unknown_samples['Sample Volume (mL)'] = (target_concentration * final_volume) / unknown_samples['Protein Concentration (mg/mL)']
-    unknown_samples['Diluent Volume (mL)'] = final_volume - unknown_samples['Sample Volume (mL)']
-    unknown_samples.loc[unknown_samples['Sample Volume (mL)'] > final_volume, ['Sample Volume (mL)', 'Diluent Volume (mL)']] = [final_volume, 0]
-    protocol.comment("\nNormalized Unknown Samples (to 1 mg/mL in {final_volume} µL):")
+    unknown_samples['Sample Volume (mL)'] = (protocol.params.target_concentration * protocol.params.final_volume) / unknown_samples['Protein Concentration (mg/mL)']
+    unknown_samples['Diluent Volume (mL)'] = protocol.params.final_volume - unknown_samples['Sample Volume (mL)']
+    unknown_samples.loc[unknown_samples['Sample Volume (mL)'] > protocol.params.final_volume, ['Sample Volume (mL)', 'Diluent Volume (mL)']] = [protocol.params.final_volume, 0]
+    protocol.comment("\nNormalized Unknown Samples (to 1 mg/mL in {protocol.params.final_volume} µL):")
     print(unknown_samples[['Sample', 'Protein Concentration (mg/mL)', 'Sample Volume (mL)', 'Diluent Volume (mL)']])
 
     normalized_samples = unknown_samples[['Sample', 'Protein Concentration (mg/mL)', 'Sample Volume (mL)', 'Diluent Volume (mL)']].reset_index().drop(columns='index')
@@ -322,7 +354,7 @@ def run(protocol: protocol_api.ProtocolContext):
     for i, row in normalized_samples.iterrows():
         source_well = sample_locations[i]
         normalized_volume = row['Sample Volume (mL)']
-        diluent_volume = final_volume - normalized_volume
+        diluent_volume = protocol.params.final_volume - normalized_volume
         destination_well = destination_wells[i]
         p1000_multi.transfer(normalized_volume, temp_adapter[source_well], plate3[destination_well], rate=0.5, new_tip='once')
         p1000_multi.transfer(diluent_volume, reservoir['A7'], plate3[destination_well], rate=0.5, new_tip='once')
@@ -334,7 +366,7 @@ def run(protocol: protocol_api.ProtocolContext):
     p50_multi.configure_nozzle_layout(style=SINGLE, start="A1", tip_racks=[partial_50]) #,
     
     #Pipette rhodamine azide (d2), tbta (d4), cuso4 (d1), and tcep (d3)
-    p50_multi.transfer(1*(num_samples*2), 
+    p50_multi.transfer(1*(protocol.params.num_samples*2), 
                             temp_adapter['D2'], 
                             temp_adapter['D6'],
                             rate=speed-0.1,
@@ -342,7 +374,7 @@ def run(protocol: protocol_api.ProtocolContext):
                             delay=2,
                             new_tip='once')
 
-    p50_multi.transfer(6*(num_samples*2), 
+    p50_multi.transfer(6*(protocol.params.num_samples*2), 
                             temp_adapter['D4'], 
                             temp_adapter['D6'],
                             mix_before=(1,10),
@@ -350,12 +382,12 @@ def run(protocol: protocol_api.ProtocolContext):
                             delay=3, 
                             new_tip='once')
 
-    p50_multi.transfer(2*(num_samples*2), 
+    p50_multi.transfer(2*(protocol.params.num_samples*2), 
                             temp_adapter['D1'], 
                             temp_adapter['D6'], 
                             new_tip='once')
 
-    p50_multi.transfer(2*(num_samples*2), 
+    p50_multi.transfer(2*(protocol.params.num_samples*2), 
                             temp_adapter['D3'], 
                             temp_adapter['D6'], 
                             mix_after=(3,50),

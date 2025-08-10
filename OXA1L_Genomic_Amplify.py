@@ -281,7 +281,7 @@ def run(protocol: protocol_api.ProtocolContext):
     thermocycler.execute_profile(
         steps=[
             {'temperature': 98, 'hold_time_seconds': 10},
-            {'temperature': 60, 'hold_time_seconds': 15},
+            {'temperature': 61, 'hold_time_seconds': 15},
             {'temperature': 72, 'hold_time_seconds': 150}
         ],
         repetitions=34,
