@@ -175,14 +175,14 @@ def run(protocol: protocol_api.ProtocolContext):
     #Add the positive control and no template control to the number of samples
     # Transfer positive control to A1
     p50_multi.distribute(sample_vol,
-                         temp_adapter['B2'],
+                         temp_adapter['B2'].bottom(z=0.1),
                          [pcr_plate[well].bottom(z=0.1) for well in sample_well_map["positive_control"]],
                          rate=0.5,
                          mix_before=(1, 10))
 
     # Transfer negative control to B1–B3
     p50_multi.distribute(sample_vol,
-                         temp_adapter['B3'],
+                         temp_adapter['B3'].bottom(z=0.1),
                          [pcr_plate[well].bottom(z=0.1) for well in sample_well_map["neg_control"]],
                          rate=0.5,
                          mix_before=(1, 10))
@@ -193,7 +193,7 @@ def run(protocol: protocol_api.ProtocolContext):
         wells = sample_well_map[f"sample_{sample_idx+1}"]
         p50_multi.distribute(
             sample_vol,
-            temp_adapter[tube_loc],
+            temp_adapter[tube_loc].bottom(z=0.1),
             [pcr_plate[well].bottom(z=0.1) for well in wells],
             rate=0.5,
             mix_before=(1, 5),
@@ -215,7 +215,7 @@ def run(protocol: protocol_api.ProtocolContext):
                             delay=2)
    
     p50_multi.distribute((dntp_vol*numtotalSamples*protocol.params.num_replicates), 
-                            temp_adapter['A3'], 
+                            temp_adapter['A3'].bottom(z=0.1), 
                             temp_adapter['B1'], 
                             new_tip='always',
                             mix_before=(1, 10),
@@ -246,20 +246,23 @@ def run(protocol: protocol_api.ProtocolContext):
                             rate=speed)
 
     p50_multi.distribute((phusion_vol*numtotalSamples*protocol.params.num_replicates), 
-                            temp_adapter['A6'], 
+                            temp_adapter['A6'].bottom(z=0.1), 
                             temp_adapter['B1'], 
                             mix_before=(1,3),
                             rate = speed-0.1,
-                            disposal_vol=1,
+                            disposal_vol=0.1,
                             delay = 2,
                             new_tip='always')
 
+    p1000_multi.pick_up_tip()
+    p1000_multi.mix(3, water_vol*numtotalSamples*protocol.params.num_replicates, temp_adapter['B1'])
+    p1000_multi.drop_tip()
 
     # Transfer mastermix
     mastermix_wells = [well for key, wells in sample_well_map.items() for well in wells]
     p1000_multi.distribute(
         mm_vol,
-        temp_adapter['B1'],
+        temp_adapter['B1'].bottom(z=0.1),
         [pcr_plate[well].bottom(z=5) for well in mastermix_wells],
         new_tip='always',
         disposal_vol=5,
@@ -285,7 +288,7 @@ def run(protocol: protocol_api.ProtocolContext):
     thermocycler.execute_profile(
         steps=[
             {'temperature': 98, 'hold_time_seconds': 10},
-            {'temperature': 61, 'hold_time_seconds': 15},
+            {'temperature': 60, 'hold_time_seconds': 15},
             {'temperature': 72, 'hold_time_seconds': 150}
         ],
         repetitions=34,
