@@ -42,7 +42,7 @@ def run(protocol: protocol_api.ProtocolContext):
 
     # Load adapters
     #hs_adapter = heater_shaker.load_adapter('opentrons_universal_flat_adapter')
-    temp_adapter = temp_module.load_labware('opentrons_24_aluminumblock_nest_1.5ml_snapcap')
+    temp_adapter = temp_module.load_labware('opentrons_24_aluminumblock_nest_1.5ml_screwcap')
 
     #set the heater_shaker temp to 60C
     heater_shaker.open_labware_latch()
