@@ -116,7 +116,7 @@ def run(protocol: protocol_api.ProtocolContext):
     temp_adapter['D2'].load_liquid(liquid=rhodamine_azide, volume=1500) #click
     temp_adapter['D3'].load_liquid(liquid=tcep_click, volume=1500) #click
     temp_adapter['D4'].load_liquid(liquid=tbta, volume=1500) #click
-    temp_adapter['D5'].load_liquid(liquid=empty, volume=1500) #click
+    temp_adapter['D6'].load_liquid(liquid=empty, volume=1500) #click
 
     # Load pipettes
     p50_multi = protocol.load_instrument('flex_8channel_50', 'left') 
@@ -368,39 +368,115 @@ def run(protocol: protocol_api.ProtocolContext):
     #Pipette rhodamine azide (d2), tbta (d4), cuso4 (d1), and tcep (d3)
     p50_multi.transfer(1*(protocol.params.num_samples*2), 
                             temp_adapter['D2'], 
-                            temp_adapter['D6'],
-                            rate=speed-0.1,
+                            temp_adapter['D6'].bottom(z=0.1),
+                            rate=speed,
                             mix_before=(1,10), 
                             delay=2,
-                            new_tip='once')
+                            disposal_vol=5,
+                            #blow_out=True,
+                            new_tip='always')
 
-    p50_multi.transfer(6*(protocol.params.num_samples*2), 
+    p50_multi.transfer(3*(protocol.params.num_samples*2), 
                             temp_adapter['D4'], 
                             temp_adapter['D6'],
                             mix_before=(1,10),
                             rate=speed,
                             delay=3, 
-                            new_tip='once')
+                            new_tip='always')
 
-    p50_multi.transfer(2*(protocol.params.num_samples*2), 
+    p50_multi.transfer(1*(protocol.params.num_samples*2), 
                             temp_adapter['D1'], 
                             temp_adapter['D6'], 
-                            new_tip='once')
+                            mix_before=(1,10),
+                            new_tip='always')
 
-    p50_multi.transfer(2*(protocol.params.num_samples*2), 
+    p50_multi.transfer(1*(protocol.params.num_samples*2), 
                             temp_adapter['D3'], 
                             temp_adapter['D6'], 
-                            mix_after=(3,50),
-                            new_tip='once')
+                            mix_after=(3,30),
+                            new_tip='always')
     
+    # Make sure the click reagents are well mixed
+    click_volume = 6*(protocol.params.final_volume/50)
+    # Track where tip racks are currently located
+    tiprack_locations = {
+        "partial_50": "B3",  # assume starts here
+        "tips_1000": "C4",   # assume starts here
+    }
+
+    def mix_click_reagents():
+        volume_click_reaction = protocol.params.final_volume + click_volume
+        location = temp_adapter['D6']
+        pipette = None
+
+        positions_mixing = [1, 1, 1]  # default fallback
+
+        if volume_click_reaction < 100:
+            positions_mixing = [1, 2, 3]
+            pipette = p50_multi
+
+        elif 100 < volume_click_reaction < 200:
+            positions_mixing = [1, 4, 9]
+            if tiprack_locations["partial_50"] != "B4":
+                protocol.move_labware(partial_50, new_location="B4", use_gripper=True)
+                tiprack_locations["partial_50"] = "B4"
+            p1000_multi.configure_nozzle_layout(style=SINGLE, start="A1", tip_racks=[tips_200])
+            pipette = p1000_multi
+
+        elif 200 < volume_click_reaction < 500:
+            positions_mixing = [1, 6, 11]
+            if tiprack_locations["partial_50"] != "B4":
+                protocol.move_labware(partial_50, new_location="B4", use_gripper=True)
+                tiprack_locations["partial_50"] = "B4"
+            if tiprack_locations["tips_1000"] != "B3":
+                protocol.move_labware(tips_1000, new_location="B3", use_gripper=True)
+                tiprack_locations["tips_1000"] = "B3"
+            p1000_multi.configure_nozzle_layout(style=SINGLE, start="A1", tip_racks=[tips_1000])
+            pipette = p1000_multi
+
+        elif 500 < volume_click_reaction < 1000:
+            positions_mixing = [1, 10, 16]
+            if tiprack_locations["partial_50"] != "B4":
+                protocol.move_labware(partial_50, new_location="B4", use_gripper=True)
+                tiprack_locations["partial_50"] = "B4"
+            if tiprack_locations["tips_1000"] != "B3":
+                protocol.move_labware(tips_1000, new_location="B3", use_gripper=True)
+                tiprack_locations["tips_1000"] = "B3"
+            p1000_multi.configure_nozzle_layout(style=SINGLE, start="A1", tip_racks=[tips_1000])
+            pipette = p1000_multi
+
+        else:
+            pipette = p1000_multi
+
+        # Perform mixing
+        pipette.pick_up_tip()
+        pipette.aspirate(protocol.params.final_volume / 2, location.bottom(z=positions_mixing[0]))
+        pipette.dispense(protocol.params.final_volume / 2, location.bottom(z=positions_mixing[1]))
+        pipette.aspirate(protocol.params.final_volume / 3, location.bottom(z=positions_mixing[2]))
+        pipette.dispense(protocol.params.final_volume / 3, location.bottom(z=positions_mixing[0]))
+        pipette.mix(3, protocol.params.final_volume, location.bottom(z=positions_mixing[0]))
+        pipette.drop_tip()
+
+        # Move tip racks back to original locations in correct order
+        if tiprack_locations["tips_1000"] != "C4":
+            protocol.move_labware(tips_1000, new_location="C4", use_gripper=True)
+            tiprack_locations["tips_1000"] = "C4"
+        if tiprack_locations["partial_50"] != "B3":
+            protocol.move_labware(partial_50, new_location="B3", use_gripper=True)
+            tiprack_locations["partial_50"] = "B3"
+
+    # Call the function
+    mix_click_reagents()
+
     # Pipette the click reaction premix
-    p50_multi.transfer(6, 
+    #protocol.move_labware(labware=partial_50, new_location='B3', use_gripper=True)
+    p50_multi.transfer(click_volume, 
                             temp_adapter['D6'], 
                             [plate3[i] for i in destination_wells],
                             rate=speed-0.1,
                             delay=2,
                             mix_before=(1, 10),
-                            mix_after=(3, 30), 
+                            mix_after=(3,30),
                             new_tip='always')
 
     # Step 11: shake the sample plate for click reaction
@@ -409,17 +485,21 @@ def run(protocol: protocol_api.ProtocolContext):
     heater_shaker.set_and_wait_for_shake_speed(1000)
     protocol.delay(minutes=90)
     heater_shaker.deactivate_shaker()
-
-    # Add the loading buffer and move to the thermocylcer to seal and store.
-    p50_multi.configure_nozzle_layout(style=ALL, tip_racks=[partial_50])
-    p50_multi.transfer(50, 
-                            reservoir['A9'], 
-                            [plate3[i] for i in destination_wells], 
-                            mix_after=(3, 40), 
-                            new_tip='always')
-
     heater_shaker.open_labware_latch()
     thermocycler.open_lid()
     protocol.move_labware(labware=plate3, new_location=thermocycler, use_gripper=True)
+
+    # Add the loading buffer and move to the thermocylcer to seal and store.
+    loading_buffer_volume = round((protocol.params.final_volume+click_volume) / 3, 1)
+    columns = sorted(set(well[1:] for well in destination_wells), key=int)
+    column_targets = [f'A{col}' for col in columns]
+    p50_multi.configure_nozzle_layout(style=ALL, tip_racks=[partial_50])
+    p50_multi.transfer(loading_buffer_volume, 
+                            reservoir['A9'], 
+                            [plate3[well] for well in column_targets], 
+                            mix_after=(3, 40), 
+                            new_tip='always')
     thermocycler.close_lid()
+    thermocycler.set_block_temperature(95)
+    protocol.delay(minutes=5)
     thermocycler.set_block_temperature(4)  # Hold at 4°C
