@@ -371,8 +371,8 @@ def run(protocol: protocol_api.ProtocolContext):
                             temp_adapter['D6'].bottom(z=0.1),
                             rate=speed,
                             mix_before=(1,10), 
-                            delay=2,
-                            disposal_vol=5,
+                            #delay=2,
+                            disposal_vol=1,
                             #blow_out=True,
                             new_tip='always')
 
@@ -475,6 +475,7 @@ def run(protocol: protocol_api.ProtocolContext):
                             [plate3[i] for i in destination_wells],
                             rate=speed-0.1,
                             delay=2,
+                            disposal_vol=0,
                             mix_before=(1, 10),
                             mix_after=(3,30),
                             new_tip='always')

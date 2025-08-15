@@ -50,13 +50,19 @@ def add_parameters(parameters):
         maximum=1000,
         unit="ng/µL"
     )
+    parameters.add_bool(
+        variable_name="dmso_true",
+        display_name="DMSO Included",
+        description="Add DMSO to PCR reaction?",
+        default=False
+    )
 
 def run(protocol: protocol_api.ProtocolContext):
     protocol.comment(
         f"Running OXA1L PCR Reaction on {protocol.params.num_samples}")
     
     # Change these if not using 96-well
-    numtotalSamples = protocol.params.num_samples + 2
+    numtotalSamples = protocol.params.num_samples + 4
     sample_vol  = 250/protocol.params.sample_conc
     buffer_vol = 10
     primer_vol = 2.5
@@ -65,10 +71,13 @@ def run(protocol: protocol_api.ProtocolContext):
     speed= 0.35
     dntp_vol = 1
     mm_vol = protocol.params.reaction_vol -sample_vol
-    water_vol = protocol.params.reaction_vol -(sample_vol+buffer_vol+dntp_vol+(primer_vol*2)+dmso_vol+phusion_vol)
+    if protocol.params.dmso_true:
+        water_vol = protocol.params.reaction_vol -(sample_vol+buffer_vol+dntp_vol+(primer_vol*2)+dmso_vol+phusion_vol)
+    else:
+        water_vol = protocol.params.reaction_vol -(sample_vol+buffer_vol+dntp_vol+(primer_vol*2)+phusion_vol)
 
     #Start recording the video
-    video_process = subprocess.Popen(["python3", "/var/lib/jupyter/notebooks/record_video.py"])
+    video_process = subprocess.Popen(["python3", "/var/lib/jupyter/notebooks/record_video_pcr.py"])
 
     # Load modules
     heater_shaker = protocol.load_module('heaterShakerModuleV1', 'D1')
@@ -200,13 +209,13 @@ def run(protocol: protocol_api.ProtocolContext):
             disposal_vol=1)
     
     # Make mastermix in empty eppendorf:
-    p1000_multi.distribute((water_vol*numtotalSamples*protocol.params.num_replicates), 
+    p1000_multi.transfer((water_vol*numtotalSamples*protocol.params.num_replicates), 
                             temp_adapter['A1'], 
                             temp_adapter['B1'],
                             rate=0.5, 
                             new_tip='always')
 
-    p1000_multi.distribute((buffer_vol*numtotalSamples*protocol.params.num_replicates), 
+    p1000_multi.transfer((buffer_vol*numtotalSamples*protocol.params.num_replicates), 
                             temp_adapter['A2'], 
                             temp_adapter['B1'], 
                             new_tip='always',
@@ -214,7 +223,7 @@ def run(protocol: protocol_api.ProtocolContext):
                             rate=speed-0.25,
                             delay=2)
    
-    p50_multi.distribute((dntp_vol*numtotalSamples*protocol.params.num_replicates), 
+    p50_multi.transfer((dntp_vol*numtotalSamples*protocol.params.num_replicates), 
                             temp_adapter['A3'].bottom(z=0.1), 
                             temp_adapter['B1'], 
                             new_tip='always',
@@ -222,7 +231,7 @@ def run(protocol: protocol_api.ProtocolContext):
                             disposal_vol=1,
                             rate=0.5)
 
-    p50_multi.distribute((primer_vol*numtotalSamples*protocol.params.num_replicates), 
+    p50_multi.transfer((primer_vol*numtotalSamples*protocol.params.num_replicates), 
                             temp_adapter['A4'], 
                             temp_adapter['B1'], 
                             rate=0.5,
@@ -230,29 +239,30 @@ def run(protocol: protocol_api.ProtocolContext):
                             disposal_vol=1,
                             new_tip='always')
 
-    p50_multi.distribute((primer_vol*numtotalSamples*protocol.params.num_replicates), 
+    p50_multi.transfer((primer_vol*numtotalSamples*protocol.params.num_replicates), 
                             temp_adapter['A5'], 
                             temp_adapter['B1'],
                             rate=0.5,
                             mix_before=(1,10), 
                             disposal_vol=1,
                             new_tip='always')
-    
-    p50_multi.distribute((dmso_vol*numtotalSamples*protocol.params.num_replicates), 
-                            reservoir['A1'], 
-                            temp_adapter['B1'],
-                            mix_before=(1, 10), 
-                            new_tip='always',
-                            rate=speed)
+    if protocol.params.dmso_true:
+        p50_multi.transfer((dmso_vol*numtotalSamples*protocol.params.num_replicates), 
+                                reservoir['A1'], 
+                                temp_adapter['B1'],
+                                mix_before=(1, 10), 
+                                new_tip='always',
+                                rate=speed)
 
-    p50_multi.distribute((phusion_vol*numtotalSamples*protocol.params.num_replicates), 
-                            temp_adapter['A6'].bottom(z=0.1), 
-                            temp_adapter['B1'], 
-                            mix_before=(1,3),
-                            rate = speed-0.1,
-                            disposal_vol=0.1,
+    p50_multi.transfer((phusion_vol*numtotalSamples*protocol.params.num_replicates), 
+                            source=temp_adapter['A6'].bottom(z=0.1), 
+                            dest=temp_adapter['B1'], 
+                            rate = speed-0.2,
+                            disposal_vol=0,
                             delay = 2,
-                            new_tip='always')
+                            blow_out=True,  # required to set location
+                            blowout_location='destination well',
+                            new_tip='once')
 
     p1000_multi.pick_up_tip()
     p1000_multi.mix(3, water_vol*numtotalSamples*protocol.params.num_replicates, temp_adapter['B1'])
@@ -264,10 +274,11 @@ def run(protocol: protocol_api.ProtocolContext):
         mm_vol,
         temp_adapter['B1'].bottom(z=0.1),
         [pcr_plate[well].bottom(z=5) for well in mastermix_wells],
-        new_tip='always',
+        new_tip='once',
+        mix_before=(1,protocol.params.reaction_vol*(protocol.params.num_samples/2)),
         disposal_vol=5,
-        rate=speed-.2,
-        delay=2)
+        rate=speed-.25,
+        delay=3)
 
     # Close thermocycler lid and set temperature
     thermocycler.set_lid_temperature(105)
