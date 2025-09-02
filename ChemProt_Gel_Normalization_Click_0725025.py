@@ -35,7 +35,7 @@ def add_parameters(parameters):
         display_name="Target protein concentration",
         description="Concentration of normalized lysate in click reaction",
         default=1.5,
-        minimum=1,
+        minimum=0.5,
         maximum=2.5,
         unit="µg/µL"
     )
