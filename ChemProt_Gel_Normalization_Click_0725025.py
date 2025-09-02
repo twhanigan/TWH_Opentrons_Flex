@@ -115,6 +115,8 @@ def run(protocol: protocol_api.ProtocolContext):
             sample_locations.append(f'C{i - 5}')
         elif i < 18:  # D1 to D6
             sample_locations.append(f'D{i - 11}')
+        elif i < 23:
+            sample_locations.append(f'A{i - 16}')  # Stop if we exceed the number of available rows/columns
         else:
             break  # Stop if we exceed the number of available rows/columns
 
@@ -207,8 +209,17 @@ def run(protocol: protocol_api.ProtocolContext):
         normalized_volume = row['Sample Volume (µL)']
         diluent_volume = protocol.params.final_volume - normalized_volume
         destination_well = destination_wells[i]
-        p1000_multi.transfer(normalized_volume, temp_adapter[source_well], plate3[destination_well], rate=0.5, new_tip='once')
-        p1000_multi.transfer(diluent_volume, reservoir['A7'], plate3[destination_well], rate=0.5, new_tip='once')
+        p1000_multi.transfer(normalized_volume, 
+                            temp_adapter[source_well], 
+                            plate3[destination_well].bottom(z=0.1), 
+                            rate=0.5, 
+                            new_tip='once')
+
+        p1000_multi.transfer(diluent_volume, 
+                            reservoir['A7'], 
+                            plate3[destination_well].bottom(z=0.1), 
+                            rate=0.5, 
+                            new_tip='once')
 
     # ---------------- Click Reaction ----------------
     protocol.comment("Running click reaction")
