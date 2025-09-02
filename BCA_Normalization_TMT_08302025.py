@@ -381,7 +381,7 @@ def run(protocol: protocol_api.ProtocolContext):
     for source, dest in zip(tmt_sources, tmt_dilution_wells):
         p50_multi.transfer(5, 
                             source, 
-                            plate3[dest],
+                            plate3[dest].bottom(z=0.1),
                             rate=speed-0.1,
                             delay=2,
                             mix_after=(3, 5), 
