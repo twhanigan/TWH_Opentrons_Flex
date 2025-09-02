@@ -41,7 +41,7 @@ def add_parameters(parameters):
         display_name="Target protein concentration",
         description="Concentration of normalized lysate in click reaction",
         default=1.5,
-        minimum=1,
+        minimum=0.5,
         maximum=2.5,
         unit="µg/µL"
     )
@@ -52,7 +52,7 @@ def add_parameters(parameters):
         description="Volume to normalize µg of protein in",
         default=50,
         minimum=50,
-        maximum=500,
+        maximum=1000,
         unit="µL"
     )
 def run(protocol: protocol_api.ProtocolContext):

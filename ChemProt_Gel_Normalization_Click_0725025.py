@@ -46,7 +46,7 @@ def add_parameters(parameters):
         description="Volume to normalize µg of protein in",
         default=50,
         minimum=50,
-        maximum=500,
+        maximum=1000,
         unit="µL"
     )
 def run(protocol: protocol_api.ProtocolContext):
