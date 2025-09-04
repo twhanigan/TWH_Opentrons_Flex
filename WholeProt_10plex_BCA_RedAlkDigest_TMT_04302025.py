@@ -95,6 +95,7 @@ def run(protocol: protocol_api.ProtocolContext):
     epp_rack = protocol.load_labware('opentrons_24_tuberack_eppendorf_1.5ml_safelock_snapcap', location=protocol_api.OFF_DECK)
 
     #set the heater_shaker temp to 60C
+    thermocycler.open_lid()
     heater_shaker.open_labware_latch()
     heater_shaker.set_and_wait_for_temperature(50)
 
@@ -112,6 +113,7 @@ def run(protocol: protocol_api.ProtocolContext):
     plate1 = protocol.load_labware('opentrons_96_wellplate_200ul_pcr_full_skirt', 'A2')
     plate2 = protocol.load_labware('corning_96_wellplate_360ul_flat', 'B2')
     plate3 = protocol.load_labware('nest_96_wellplate_2ml_deep', location=protocol_api.OFF_DECK) 
+    plate4 = protocol.load_labware('opentrons_96_wellplate_200ul_pcr_full_skirt', location=protocol_api.OFF_DECK)
     tmt_plate = protocol.load_labware('opentrons_96_wellplate_200ul_pcr_full_skirt', location=protocol_api.OFF_DECK)
     reservoir = protocol.load_labware('nest_12_reservoir_15ml', 'C2')
     
@@ -127,6 +129,7 @@ def run(protocol: protocol_api.ProtocolContext):
     IAA =  protocol.define_liquid(name='IAA', display_color="#AA00FF")  # ?
     excess_lysis = protocol.define_liquid(name='Excess Lysis Buffer', display_color="#FF0099")  # Pink
     epps_urea = protocol.define_liquid(name='2M Urea in EPPS', display_color="#00FF99")  # SaddleBrown
+    epps = protocol.define_liquid(name='2M Urea in EPPS', display_color="#00FF99")  # SaddleBrown
     abs_ethanol = protocol.define_liquid(name='100% Ethanol', display_color="#4682B4")  # SteelBlue
     ethanol = protocol.define_liquid(name='80% Ethanol', display_color="#4682B4")  # SteelBlue
     trypsin = protocol.define_liquid(name='Trypsin in EPPS', display_color="#9900FF")  # Gold
@@ -142,6 +145,7 @@ def run(protocol: protocol_api.ProtocolContext):
     reservoir['A8'].load_liquid(liquid=abs_ethanol,volume=15000)
     reservoir['A9'].load_liquid(liquid=ethanol, volume=15000)  # 80% Ethanol
     reservoir['A10'].load_liquid(liquid=ethanol, volume=15000)  # 80% Ethanol for washes
+    reservoir['A11'].load_liquid(liquid=epps, volume = 15000)   # 200 mM EPPS
     reservoir['A12'].load_liquid(liquid=epps_urea, volume=15000)  # 2M Urea in EPPS
 
     # Trypsin and CaCl2 for digestion
@@ -312,6 +316,7 @@ def run(protocol: protocol_api.ProtocolContext):
     protocol.move_labware(labware=plate1, new_location=protocol_api.OFF_DECK)
     protocol.move_labware(labware=plate2, new_location=protocol_api.OFF_DECK)
     protocol.move_labware(labware=plate3,new_location='B2')
+    protocol.move_labware(labware=plate4, new_location=thermocycler)
 
     #trick heater_shaker into using 96-well plates
     #protocol.move_labware(labware=heater_shaker, new_location=protocol_api.OFF_DECK, use_gripper=False)
@@ -479,7 +484,13 @@ def run(protocol: protocol_api.ProtocolContext):
     protocol.delay(minutes=18) ##this is a minimal time necessary to bind the beads in that much EtOH/lysis buffer.
 
     # Remove the EtOH from the beads leaving 200 uL in the bottom
-    p1000_multi.consolidate(900, [well.bottom(z=2) for well in destination_wells_col], reservoir['A11'], rate=0.25, new_tip='once')
+    for well in destination_wells_col:
+        p1000_multi.pick_up_tip()
+        p1000_multi.aspirate(900, 
+                            well.bottom(z=2), 
+                            rate=0.25, 
+                            new_tip='once')
+        p1000_multi.drop_tip()
 
     # Remove remainder of EtOH and Add 80% EtOH and wash the beads three times with 200 uL 80% EtOH
     for i in range(3):
@@ -679,34 +690,50 @@ def run(protocol: protocol_api.ProtocolContext):
     protocol.move_labware(labware=plate3, new_location='B2', use_gripper=True)
     protocol.move_labware(labware=tmt_plate, new_location='A2', use_gripper=True)
     tmt_dilution_wells = [f'{rows[i % 8]}{(i // 8) + 3}' for i in range(protocol.params.num_samples)]  # Assuming destination column is col 3
-    
-    # Add TMT reagents
-    tmt_sources = [tmt_plate[f'{protocol.params.tmt_row}{i+1}'] for i in range(protocol.params.num_samples)]
-    for source, dest in zip(tmt_sources, tmt_dilution_wells):
-        p50_multi.transfer(5, 
-                            source.bottom(z=0.1), 
-                            plate3[dest].bottom(z=0.1),
+    p50_multi.configure_nozzle_layout(style=ALL, tip_racks=[tips_50])
+
+    # Calculate the total protein amount
+    total_protein = protocol.params.final_volume*protcol.params.target_concentration
+    tmt_vol = 10/(total_protein/(147.5+2.5+150))
+
+    # Move 10 ug of sample to plate4 and dilute to 10 uL with EPPS
+    for well in destination_wells_col:
+        p50_multi.transfer(tmt_vol, 
+                            plate3[well].bottom(z=0.1), 
+                            plate4[well].bottom(z=0.1),
+                            rate=speed-0.1,
+                            delay=2,
+                            disposal_vol=0,
+                            new_tip='always')
+        p50_multi.transfer(10-tmt_vol, 
+                            reservoir['A11'],
+                            plate4[well].bottom(z=0.1),
                             rate=speed-0.1,
                             delay=2,
                             disposal_vol=0,
                             mix_after=(3, 5), 
                             new_tip='always')
     
+    # Add TMT reagents
+    tmt_sources = [tmt_plate[f'{protocol.params.tmt_row}{i+1}'] for i in range(protocol.params.num_samples)]
+    for source, dest in zip(tmt_sources, tmt_dilution_wells):
+        p50_multi.transfer(5, 
+                            source.bottom(z=0.1), 
+                            plate4[dest].bottom(z=0.1),
+                            rate=speed-0.1,
+                            delay=2,
+                            disposal_vol=0,
+                            mix_after=(3, 10), 
+                            new_tip='always')
+    
     # Step 11: shake the sample plate for click reaction
-    protocol.move_labware(labware=plate3, new_location=heater_shaker, use_gripper=True)
-    heater_shaker.close_labware_latch()
-    heater_shaker.set_and_wait_for_shake_speed(1000)
     protocol.delay(minutes=120)
-    heater_shaker.deactivate_shaker()
-    heater_shaker.open_labware_latch()
-    thermocycler.open_lid()
-    protocol.move_labware(labware=plate3, new_location=thermocycler, use_gripper=True)
 
     #Add hydroxylamine solution
     for source, dest in zip(tmt_sources, tmt_dilution_wells):
         p50_multi.transfer(1, 
                             temp_adapter['D4'], 
-                            plate3[dest],
+                            plate4[dest],
                             mix_after=(2, 5),
                             new_tip='once')
 

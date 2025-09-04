@@ -62,14 +62,10 @@ def run(protocol: protocol_api.ProtocolContext):
     
     #Speed of pipetting NP40 lysis buffer=0.35, 2M Urea in EPPS=0.3
     speed= 0.3
-    final_volume = 0.440
     num_rows = 8  # A-H
 
     #Start recording the video
-    video_output_file = 'BCA_Assay_012425.mp4'
-    device_index = "<video2>"
-    duration = 1800
-    video_process = subprocess.Popen(["python3", "/var/lib/jupyter/notebooks/record_video.py"])
+    video_process = subprocess.Popen(["python3", "/var/lib/jupyter/notebooks/record_video_chemprot.py"])
 
     # Load modules
     heater_shaker = protocol.load_module('heaterShakerModuleV1', 'D1')
@@ -83,6 +79,7 @@ def run(protocol: protocol_api.ProtocolContext):
     epp_rack = protocol.load_labware('opentrons_24_tuberack_eppendorf_1.5ml_safelock_snapcap', location=protocol_api.OFF_DECK)
 
     #set the heater_shaker temp to 60C
+    heater_shaker.open_labware_latch()
     heater_shaker.set_and_wait_for_temperature(50)
 
     #set the temp module to 0c

@@ -723,7 +723,7 @@ def run(protocol: protocol_api.ProtocolContext):
                         [well for well in destination_wells_col],
                         mix_before=(1,150), 
                         mix_after=(3, 150), 
-                        new_tip='once')
+                        new_tip='always')
 
     #Configure the p50 pipette to use single tip NOTE: this resets the pipettes tip racks!
     p1000_multi.configure_nozzle_layout(style=SINGLE, start="A1",tip_racks=[tips_1000])
