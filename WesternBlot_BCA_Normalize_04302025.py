@@ -168,36 +168,42 @@ def run(protocol: protocol_api.ProtocolContext):
     p50_multi.aspirate(50,plate1[f'G{protocol.params.standards_col}'])
     p50_multi.drop_tip()
 
+    # --- support up to 24 samples (B1–B6, C1–C6, D1–D6, E1–E6) ---
+    if protocol.params.num_samples > 24:
+        protocol.comment("num_samples > 24 requested; capping at 24.")
+    num = min(protocol.params.num_samples, 24)
+
     # assign sample locations dynamically
     sample_locations = []
-    for i in range(protocol.params.num_samples):
-        if i < 6:  # B1 to B6
+    for i in range(num):
+        if i < 6:          # B1 to B6
             sample_locations.append(f'B{i + 1}')
-        elif i < 12:  # C1 to C6
+        elif i < 12:       # C1 to C6
             sample_locations.append(f'C{i - 5}')
-        elif i < 18:  # D1 to D6
+        elif i < 18:       # D1 to D6
             sample_locations.append(f'D{i - 11}')
-        else:
-            break  # Stop if we exceed the number of available rows/columns
+        else:              # E1 to E6 (i = 18..23)
+            sample_locations.append(f'E{i - 17}')
 
     # Predefined list of letters A-H
     row = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
 
-    # Create a list of rows that repeats based on num_samples
-    rows = [row[i % len(row)] for i in range(protocol.params.num_samples)]
+    # Create a list of rows that repeats based on num (destination rows A–H cycling)
+    rows = [row[i % len(row)] for i in range(num)]
 
     # Create a dynamic sample map based on the assigned sample locations
-    sample_map = list(map(lambda i,j :(i,j), rows, sample_locations))
-    s=-1
+    sample_map = list(map(lambda i, j: (i, j), rows, sample_locations))
+
+    s = -1
     # Iterate over the sample_map list
     for index, (row, tube) in enumerate(sample_map):
-        s+= 1
+        s += 1
         if index < 8:
-            base_column = 4 + (index // 8)  # This will determine the starting column for each row
-        elif index< 16:
-            base_column = 6 + (index // 8)
+            base_column = 4 + (index // 8)   # 0–7 -> col 4
+        elif index < 16:
+            base_column = 6 + (index // 8)   # 8–15 -> col 7
         else:
-            base_column = 8 + (index //8)
+            base_column = 8 + (index // 8)   # 16–23 -> col 10
 
         # Load the samples into the temp_adapter
         sample_name = 'Sample_'+str(index)
@@ -266,7 +272,8 @@ def run(protocol: protocol_api.ProtocolContext):
     heater_shaker.deactivate_shaker()
     heater_shaker.deactivate_heater()
     heater_shaker.open_labware_latch()
-
+    protocol.move_labware(labware=plate2, new_location='B2',use_gripper=True)
+    
     # ---------------- Normalizing BCA Assay ----------------
     protocol.comment("Place BCA assay absorbance data in /var/lib/jupyter/notebooks/TWH, load new deep well plate into flex B2 (where BCA plate was), and new tube rack into A2 (with excess lysis buffer in A1 and empty falcon in A2)")
 

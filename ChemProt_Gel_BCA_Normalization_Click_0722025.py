@@ -252,6 +252,7 @@ def run(protocol: protocol_api.ProtocolContext):
     heater_shaker.deactivate_shaker()
     heater_shaker.deactivate_heater()
     heater_shaker.open_labware_latch()
+    protocol.move_labware(labware=plate2, new_location='B2',use_gripper=True)
 
     # ---------------- Normalizing BCA Assay ----------------
     # Tell the user to load BCA assay data
@@ -489,7 +490,7 @@ def run(protocol: protocol_api.ProtocolContext):
     # Step 11: shake the sample plate for click reaction
     protocol.move_labware(labware=plate3, new_location=heater_shaker, use_gripper=True)
     heater_shaker.close_labware_latch()
-    heater_shaker.set_and_wait_for_shake_speed(1000)
+    heater_shaker.set_and_wait_for_shake_speed(500)
     protocol.delay(minutes=90)
     heater_shaker.deactivate_shaker()
     heater_shaker.open_labware_latch()
