@@ -488,7 +488,7 @@ def run(protocol: protocol_api.ProtocolContext):
         47.5,
         reservoir['A12'],
         [well for well in destination_wells_col],
-        mix_before=(1, 500),
+        mix_before=(1, 50),
         mix_after=(3, 30),
         new_tip='always'
     )
@@ -506,13 +506,13 @@ def run(protocol: protocol_api.ProtocolContext):
                             new_tip='once')
 
     # Add Trypsin. For 50ug protein, resuspend trypsin in 2000 uL 2 M urea EPPS and place 500 uL on the robot. 
-    p1000_multi.transfer(50, 
+    p1000_multi.distribute(50, 
                             temp_adapter['D6'], 
                             [plate3[i].top(z=-10) for i in destination_wells],
                             disposal_vol=0,
                             rate=speed,
                             mix_before=(1,150),
-                            mix_after=(3,500),
+                            #mix_after=(3,500),
                             new_tip='once')
 
     # Digest overnight

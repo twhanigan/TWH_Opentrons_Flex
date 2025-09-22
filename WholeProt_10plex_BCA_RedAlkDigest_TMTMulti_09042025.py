@@ -166,9 +166,9 @@ def run(protocol: protocol_api.ProtocolContext):
          reservoir['A4'],
          plate1[f'A{protocol.params.standards_col}'],
          rate = speed,
+         mix_before=(1, 50),
          delay = 2,
-         new_tip='once',
-         blow_out=True)
+         new_tip='once')
 
     # Step 2: move the 200uL tips to D4 and then the 50 uL partial tips to B3
     protocol.move_labware(labware=tips_200, new_location="B4", use_gripper=True)
@@ -289,7 +289,7 @@ def run(protocol: protocol_api.ProtocolContext):
     #Step 16: move plate 2 to the heater shaker and incubate at 37c
     heater_shaker.open_labware_latch()
     protocol.move_labware(labware=plate2, new_location=heater_shaker,use_gripper=True)
-    heater_shaker.set_and_wait_for_temperature(40)
+    heater_shaker.set_and_wait_for_temperature(37)
     heater_shaker.close_labware_latch()
     heater_shaker.set_and_wait_for_shake_speed(500)
     protocol.delay(minutes=10)
@@ -652,18 +652,18 @@ def run(protocol: protocol_api.ProtocolContext):
     # Add CaCl2, trypsin in epps, and move to shaker
     p1000_multi.distribute(2.5, 
                             temp_adapter['D5'], 
-                            [plate3[i].bottom(z=1) for i in destination_wells],
+                            [plate3[i].bottom(z=0.5) for i in destination_wells],
                             disposal_vol=10, 
                             new_tip='once')
 
-    # Add Trypsin. First resuspend trypsin in 600 uL 2 M urea EPPS
-    p1000_multi.transfer(50, 
+    # Add Trypsin. For 50ug protein, resuspend trypsin in 2000 uL 2 M urea EPPS and place 500 uL on the robot. 
+    p1000_multi.distribute(50, 
                             temp_adapter['D6'], 
-                            [plate3[i].bottom(z=1) for i in destination_wells],
+                            [plate3[i].top(z=-10) for i in destination_wells],
                             disposal_vol=0,
                             rate=speed,
                             mix_before=(1,150),
-                            mix_after=(3,500),
+                            #mix_after=(3,500),
                             new_tip='once')
 
     # Digest overnight
