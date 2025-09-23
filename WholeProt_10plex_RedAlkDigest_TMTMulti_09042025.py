@@ -563,7 +563,7 @@ def run(protocol: protocol_api.ProtocolContext):
         src_anchor = plate3.columns()[dest_start_col_idx + c][0]  # A{src_col}
         dst_anchor = plate4.columns()[c][0]                       # A{dst_col}
         p50_multi.transfer(
-            transfer_vol,
+            tmt_vol,
             src_anchor.bottom(z=0.5),
             dst_anchor.bottom(z=0.1),
             new_tip='always',

@@ -18,6 +18,7 @@ requirements = {
     "apiLevel": "2.21"
 }
 
+
 def add_parameters(parameters):
 
     parameters.add_int(
@@ -160,7 +161,9 @@ def run(protocol: protocol_api.ProtocolContext):
     # Step 6: remove excess standard from well G
     p50_multi.aspirate(50,plate1[f'G{protocol.params.standards_col}'])
     p50_multi.drop_tip()
-
+    
+    # assign sample locations dynamically
+    sample_locations = []
     for i in range(protocol.params.num_samples):
         if i < 6:  # B1 to B6
             sample_locations.append(f'B{i + 1}')
