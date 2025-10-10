@@ -19,19 +19,35 @@ requirements = {
     "apiLevel": "2.21"
 }
 
+def add_parameters(parameters):
+
+    parameters.add_int(
+        variable_name="num_samples",
+        display_name="Number of samples",
+        description="Number of input samples to be tested for mycoplasma.",
+        default=10,
+        minimum=1,
+        maximum=24
+    )
+    
+    parameters.add_int(
+        variable_name="standards_col",
+        display_name="standards column",
+        description="Integer of column on plate1 where standards will be diluted",
+        default=1,
+        minimum=1,
+        maximum=12
+    )
+
+
 def run(protocol: protocol_api.ProtocolContext):
-    #######################################################################################
     protocol.comment(
         "Place BSA Standard in A1, reagents a, b, c and Lysis buffer in reservoir, and samples starting in row B")
     protocol.comment("Running the BCA assay")
 
     #Speed of pipetting NP40 lysis buffer=0.35, 2M Urea in EPPS=0.75
     speed= 0.3
-    target_concentration = 1
-    final_volume = 0.5
-    num_samples = 10 #change this to the number of samples you need to run. The maximum is 18.
     num_rows = 8  # A-H
-    num_replicates = 3  # the number of replicates
 
     #Start recording the video
     video_process = subprocess.Popen(["python3", "/var/lib/jupyter/notebooks/record_video_bca.py"])
@@ -54,9 +70,8 @@ def run(protocol: protocol_api.ProtocolContext):
     temp_module.set_temperature(celsius=10)
     
     # Load labware
-    tips_50 = protocol.load_labware('opentrons_flex_96_filtertiprack_50ul', 'A4')
-    partial_50 = protocol.load_labware(load_name="opentrons_flex_96_filtertiprack_50ul",location="A3")
-    tips_200 = protocol.load_labware(load_name="opentrons_flex_96_filtertiprack_200ul",location="B3")
+    partial_50 = protocol.load_labware(load_name="opentrons_flex_96_filtertiprack_50ul",location="B3")
+    tips_200 = protocol.load_labware(load_name="opentrons_flex_96_filtertiprack_200ul",location="A3")
     tips_1000 = protocol.load_labware('opentrons_flex_96_filtertiprack_1000ul', 'C4')
     plate1 = protocol.load_labware('opentrons_96_wellplate_200ul_pcr_full_skirt', 'A2')
     plate2 = protocol.load_labware('corning_96_wellplate_360ul_flat', 'B2')
@@ -68,7 +83,7 @@ def run(protocol: protocol_api.ProtocolContext):
     bsa_reag_b = protocol.define_liquid(name = 'Reagent B', display_color="#704900",)
     bsa_reag_c = protocol.define_liquid(name = 'Reagent C', display_color="#701100",)
     excess_lysis = protocol.define_liquid(name='Excess Lysis Buffer', display_color="#FFC0CB")  # Pink
-    sample_liquids = [protocol.define_liquid(name = f'Sample {i + 1}', display_color="#FFA000",) for i in range(num_samples)]
+    sample_liquids = [protocol.define_liquid(name = f'Sample {i + 1}', display_color="#FFA000",) for i in range(protocol.params.num_samples)]
 
     # Reservoir assignments for washes and digestion
     reservoir['A1'].load_liquid(liquid=bsa_reag_a, volume=20000)  
@@ -86,14 +101,10 @@ def run(protocol: protocol_api.ProtocolContext):
     # Steps 1: Add lysis buffer to column 1 of plate1. 
     p1000_multi.distribute(50, 
          reservoir['A7'],
-         plate1['A1'],
+         plate1[f'A{protocol.params.standards_col}'],
          rate = speed,
          delay = 2,
-         new_tip='once',
-         blow_out=True)
-
-    # Step 2: move the 200uL partial tips to D4 and then the 50 uL partial tips to B3
-    protocol.move_labware(labware=tips_200, new_location="D4", use_gripper=True)
+         new_tip='once')
 
     #Step 3: Configure the p50 pipette to use single tip NOTE: this resets the pipettes tip racks!
     p50_multi.configure_nozzle_layout(style=SINGLE, start="A1",tip_racks=[partial_50])
@@ -101,37 +112,37 @@ def run(protocol: protocol_api.ProtocolContext):
     # Step 4: Transfer BSA standard (20 mg/ml) to first well of column 1
     p50_multi.transfer(50,
         temp_adapter['A1'],
-        plate1['A1'],
+        plate1[f'A{protocol.params.standards_col}'],
         rate = speed,
         delay = 2,
         mix_after=(3, 40),
-        new_tip='once')
+        new_tip='once',
+        disposal_vol=0)
 
     # Step 5: Perform serial dilution down column 1
     rows = ['A','B', 'C', 'D', 'E', 'F', 'G']
     p50_multi.pick_up_tip()
     for source, dest in zip(rows[:-1], rows[1:]):
         p50_multi.transfer(50,
-                         plate1[f'{source}1'],
-                         plate1[f'{dest}1'],
+                         plate1[f'{source}{protocol.params.standards_col}'],
+                         plate1[f'{dest}{protocol.params.standards_col}'],
                          rate = speed,
                          mix_after=(3, 40),
                          new_tip='never', 
                          disposal_vol=0)
-
-    # Step 6: remove excess standard from well G
-    p50_multi.aspirate(50,plate1['G1'])
     p50_multi.drop_tip()
 
     # assign sample locations dynamically
     sample_locations = []
-    for i in range(num_samples):
-        if i < 6:  # B1 to B6
+    for i in range(protocol.params.num_samples):
+        if i < 6:          # B1 to B6
             sample_locations.append(f'B{i + 1}')
-        elif i < 12:  # C1 to C6
+        elif i < 12:       # C1 to C6
             sample_locations.append(f'C{i - 5}')
-        elif i < 18:  # D1 to D6
+        elif i < 18:       # D1 to D6
             sample_locations.append(f'D{i - 11}')
+        elif i < 24:              # E1 to E6 (i = 18..23)
+            sample_locations.append(f'E{i - 17}')
         else:
             break  # Stop if we exceed the number of available rows/columns
 
@@ -139,7 +150,7 @@ def run(protocol: protocol_api.ProtocolContext):
     row = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
 
     # Create a list of rows that repeats based on num_samples
-    rows = [row[i % len(row)] for i in range(num_samples)]
+    rows = [row[i % len(row)] for i in range(protocol.params.num_samples)]
 
     # Create a dynamic sample map based on the assigned sample locations
     sample_map = list(map(lambda i,j :(i,j), rows, sample_locations))
@@ -159,27 +170,23 @@ def run(protocol: protocol_api.ProtocolContext):
         #Transfer the samples onto plate 2
         p50_multi.distribute(5,
                             temp_adapter[tube],
-                            [plate2[i].bottom(z=0) for i in destination_wells],
+                            [plate2[i].bottom(z=0.1) for i in destination_wells],
                             rate = speed,
                             mix_before=(1, 10),
                             disposal_vol=5)  # Distributing to three consecutive columns
 
-    # Step 8: move the 50uL complete tips to A3
-    protocol.move_labware(labware=tips_50, new_location="B3", use_gripper=True)
-
     #Step 9: Load the p50 with full tip rack
-    p50_multi.configure_nozzle_layout(style=ALL, tip_racks=[tips_50]) #, 
+    p50_multi.configure_nozzle_layout(style=ALL, tip_racks=[partial_50]) #, 
 
     #Step 10: Pipette triplicate of controls from plate1 column 1 to plate2 columns 1,2,3 
     p50_multi.distribute(5, 
-                        plate1['A1'], 
-                        [plate2[f'A{i}'].bottom(z=0) for i in range(1, 4)],
+                        plate1[f'A{protocol.params.standards_col}'], 
+                        [plate2[f'A{i}'].bottom(z=0.1) for i in range(1, 4)],
                         rate= speed,
                         disposal_vol=5)
 
     # Step 11: move the 50 uL partial tips to C3 and the 200uL complete tips to B3
-    protocol.move_labware(labware=tips_50, new_location="A4", use_gripper=True)
-    protocol.move_labware(labware=tips_1000, new_location="B3", use_gripper=True)
+    protocol.move_labware(labware=tips_1000, new_location="C3", use_gripper=True)
 
     #Step 12: Load the p1000 with full tip rack
     p1000_multi.configure_nozzle_layout(style=ALL, tip_racks=[tips_1000]) #,
@@ -204,7 +211,6 @@ def run(protocol: protocol_api.ProtocolContext):
                         plate2.wells(),
                         new_tip='once',
                         rate = speed,
-                        mix_after=(2, 10),
                         disposal_vol=5)
 
     #Step 16: move plate 2 to the heater shaker and incubate at 37c
@@ -218,90 +224,5 @@ def run(protocol: protocol_api.ProtocolContext):
     heater_shaker.deactivate_shaker()
     heater_shaker.deactivate_heater()
     heater_shaker.open_labware_latch()
-
-    #######################################################################################
-    # Tell the user to load BCA assay data
-    protocol.comment("Place BCA assay absorbance data in /var/lib/jupyter/notebooks/TWH, load new deep well plate into flex B2 (where BCA plate was), and new tube rack into A2 (with excess lysis buffer in A1 and empty falcon in A2)")
-
-    # Pause the protocol until the user loads the file to /var/lib/jupyter/notebooks
-    protocol.pause()
-
-    # Define the directory path
-    directory = Path("/var/lib/jupyter/notebooks/TWH/")
-
-    # Get today's date in YYMMDD format
-    today_date = datetime.date.today().strftime("%y%m%d")
-
-    # For debugging, change the file from wait_for_file.py to wait_for_file_debug.py
-    find_file = subprocess.Popen(['python3',"/var/lib/jupyter/notebooks/wait_for_file.py"],stdout=subprocess.PIPE,
-        text=True)
-    stdout, stderr = find_file.communicate()
-
-    if stderr:
-        raise ValueError(f"Error while waiting for file: {stderr}")
-
-    # Extract the file path from the output
-    #file_path = "C:\\Users\\thanigan\\Documents\\GitHub\\TWH_Opentrons_Flex\\WholeProt3_250430.xlsx"
-    file_path = stdout.splitlines()[1]
-    if not file_path:
-        raise ValueError("No file path returned by wait_for_file.py")
-
-    protocol.comment(f"Successfully loaded: {file_path}")
-    # Read the data file
-    df = pd.read_excel(file_path, header=5, nrows=8, usecols="C:N")
-
-    # Create a list of well names (A1 to H12)
-    well_names = [f"{row}{col}" for col in range(1, 13) for row in "ABCDEFGH"]
-
-    # Flatten the absorbance values into a single list
-    absorbance_values = df.values.flatten()
-
-    # Create the DataFrame
-    initial_df = pd.DataFrame({'Well': well_names, 'Absorbance': absorbance_values})
-
-    # Process data for normalization
-    samples, replicate_1, replicate_2, replicate_3 = [], [], [], []
-    sample_index = 1
-    for col_offset in range(0, 12, 3):  # Iterate by column groups (triplets)
-        for row_offset in range(8):  # Iterate row-wise for each sample
-            start = row_offset * 12 + col_offset  # Starting index for the sample
-            if start + 2 < len(initial_df):
-                samples.append(f"Sample {sample_index}")
-                replicate_1.append(initial_df.iloc[start]['Absorbance'])
-                replicate_2.append(initial_df.iloc[start + 1]['Absorbance'])
-                replicate_3.append(initial_df.iloc[start + 2]['Absorbance'])
-                sample_index += 1
-
-    final_df = pd.DataFrame({
-        'Sample': samples,
-        'Replicate 1': replicate_1,
-        'Replicate 2': replicate_2,
-        'Replicate 3': replicate_3
-    })
-
-    samples_1_to_8 = final_df.iloc[:8]
-    samples_1_to_8['Mean Absorbance'] = samples_1_to_8[['Replicate 1', 'Replicate 2', 'Replicate 3']].mean(axis=1)
-    protein_concentrations = [10, 5, 2.5, 1.25, 0.625, 0.3125, 0.15625, 0]
-    samples_1_to_8['Protein Concentration (mg/mL)'] = protein_concentrations
-
-    slope, intercept = np.polyfit(samples_1_to_8['Protein Concentration (mg/mL)'], samples_1_to_8['Mean Absorbance'], 1)
-    y_pred = slope * samples_1_to_8['Protein Concentration (mg/mL)'] + intercept
-    ss_res = np.sum((samples_1_to_8['Mean Absorbance'] - y_pred) ** 2)
-    ss_tot = np.sum((samples_1_to_8['Mean Absorbance'] - np.mean(samples_1_to_8['Mean Absorbance'])) ** 2)
-    r_squared = 1 - (ss_res / ss_tot)
-
-    unknown_samples = final_df.iloc[8:8 + num_samples]
-    unknown_samples['Mean Absorbance'] = unknown_samples[['Replicate 1', 'Replicate 2', 'Replicate 3']].mean(axis=1)
-    unknown_samples['Protein Concentration (mg/mL)'] = (unknown_samples['Mean Absorbance'] - intercept) / slope
-
-
-    unknown_samples['Sample Volume (mL)'] = (target_concentration * final_volume) / unknown_samples['Protein Concentration (mg/mL)']
-    unknown_samples['Diluent Volume (mL)'] = final_volume - unknown_samples['Sample Volume (mL)']
-    unknown_samples.loc[unknown_samples['Sample Volume (mL)'] > final_volume, ['Sample Volume (mL)', 'Diluent Volume (mL)']] = [final_volume, 0]
-    protocol.comment("\nNormalized Unknown Samples (to 1 mg/mL in 500 µL):")
-    normalized_samples = unknown_samples[['Sample', 'Protein Concentration (mg/mL)', 'Sample Volume (mL)', 'Diluent Volume (mL)']].reset_index().drop(columns='index')
-
-    # Write the output and image of data plot to the instrument jupyter notebook directory
-    filename = f"Protocol_output_{today_date}.csv"
-    output_file_destination_path = directory.joinpath(filename)
-    normalized_samples.to_csv(output_file_destination_path)
+    # Stop video recording after the main task is completed
+    video_process.terminate()

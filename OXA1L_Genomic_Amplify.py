@@ -62,7 +62,7 @@ def run(protocol: protocol_api.ProtocolContext):
         f"Running OXA1L PCR Reaction on {protocol.params.num_samples}")
     
     # Change these if not using 96-well
-    numtotalSamples = protocol.params.num_samples + 4
+    numtotalSamples = protocol.params.num_samples + 2.25
     sample_vol  = 250/protocol.params.sample_conc
     buffer_vol = 10
     primer_vol = 2.5
@@ -165,21 +165,43 @@ def run(protocol: protocol_api.ProtocolContext):
             used_wells.add(well)
         return wells
 
+    # Alternative to account for only one replicate always for pos and neg control
+    #def get_next_wells(start_index, number_replicates, used_wells, row_offset=0):
+    #    col = 1 + (start_index // (num_rows // number_replicates))
+    #    row_pair_index = start_index % (num_rows // number_replicates)
+    #    wells = []
+    #    for i in range(number_replicates):
+    #        # minimal tweak: allow a row_offset and wrap within plate rows
+    #        row_letter = row_letters[((row_pair_index * number_replicates) + i + row_offset) % num_rows]
+    #        well = f"{row_letter}{col}"
+    #        wells.append(well)
+    #        used_wells.add(well)
+    #    return wells
+
     # create mapping of samples and controls
     used_wells = set()
     sample_well_map = {}
 
     # allocate wells for positive control
-    sample_well_map["positive_control"] = get_next_wells(0, protocol.params.num_replicates, used_wells)
+    sample_well_map["positive_control"] = get_next_wells(0, 1, used_wells)
 
     # allocate wells for negative control
-    sample_well_map["neg_control"] = get_next_wells(1, protocol.params.num_replicates, used_wells)
+    sample_well_map["neg_control"] = get_next_wells(1, 1, used_wells)
 
     # allocate wells for each sample
     for sample_idx in range(protocol.params.num_samples):
         next_wells = get_next_wells(sample_idx + 2, protocol.params.num_replicates, used_wells)
         sample_well_map[f"sample_{sample_idx+1}"] = next_wells
     
+    # start immediately after 2 control wells
+    #replicates = protocol.params.num_replicates
+    #start_index = 2 // replicates           # which block to start in
+    #row_offset = 2 % replicates             # how far into that block (C for 2 controls)
+    #for sample_idx in range(protocol.params.num_samples):
+    #    next_wells = get_next_wells(sample_idx + start_index, replicates, used_wells, row_offset=row_offset)
+    #    sample_well_map[f"sample_{sample_idx+1}"] = next_wells
+
+
     thermocycler.set_block_temperature(4)
     #Add the positive control and no template control to the number of samples
     # Transfer positive control to A1

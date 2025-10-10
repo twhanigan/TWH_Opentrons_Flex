@@ -49,6 +49,7 @@ def add_parameters(parameters):
         maximum=1000,
         unit="µL"
     )
+
 def run(protocol: protocol_api.ProtocolContext):
     protocol.comment(
         "Place BSA Standard in A1, Lysis buffer in A2, tbta in A3, biotin in A4, cuso4 in A5, tcep in A6 and samples in row B")
@@ -369,3 +370,5 @@ def run(protocol: protocol_api.ProtocolContext):
     thermocycler.set_block_temperature(95)
     protocol.delay(minutes=5)
     thermocycler.set_block_temperature(4)  # Hold at 4°C
+    # Stop video recording after the main task is completed
+    video_process.terminate()
