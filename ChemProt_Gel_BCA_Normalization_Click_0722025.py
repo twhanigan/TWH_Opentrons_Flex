@@ -245,7 +245,7 @@ def run(protocol: protocol_api.ProtocolContext):
     heater_shaker.set_and_wait_for_temperature(50)
     heater_shaker.close_labware_latch()
     heater_shaker.set_and_wait_for_shake_speed(500)
-    protocol.delay(minutes=5)
+    protocol.delay(minutes=20)
 
     #Step 17 deactivate heater shaker and temp modules
     heater_shaker.deactivate_shaker()

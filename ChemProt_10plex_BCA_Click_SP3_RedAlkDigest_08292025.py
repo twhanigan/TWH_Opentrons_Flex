@@ -162,7 +162,8 @@ def run(protocol: protocol_api.ProtocolContext):
         rate = 0.35,
         delay = 2,
         mix_after=(3, 40),
-        new_tip='once')
+        new_tip='once',
+        disposal_vol=0)
 
     # Step 5: Perform serial dilution down column 1
     rows = ['A','B', 'C', 'D', 'E', 'F', 'G']
@@ -171,14 +172,10 @@ def run(protocol: protocol_api.ProtocolContext):
         p50_multi.transfer(50,
                          plate1[f'{source}{protocol.params.standards_col}'],
                          plate1[f'{dest}{protocol.params.standards_col}'],
-                         rate = 0.5,
+                         rate = speed,
                          mix_after=(3, 40),
                          new_tip='never', 
                          disposal_vol=0)
-
-    # Step 6: remove excess standard from well G
-    p50_multi.aspirate(50,plate1[f'G{protocol.params.standards_col}'])
-    p50_multi.drop_tip()
 
     # assign sample locations dynamically
     sample_locations = []
@@ -257,7 +254,6 @@ def run(protocol: protocol_api.ProtocolContext):
                         plate2.wells(),
                         new_tip='once',
                         rate = speed,
-                        mix_after=(2, 10),
                         disposal_vol=5)
 
     #Step 16: move plate 2 to the heater shaker and incubate at 37c
@@ -266,7 +262,7 @@ def run(protocol: protocol_api.ProtocolContext):
     heater_shaker.set_and_wait_for_temperature(50)
     heater_shaker.close_labware_latch()
     heater_shaker.set_and_wait_for_shake_speed(500)
-    protocol.delay(minutes=10)
+    protocol.delay(minutes=20)
     heater_shaker.deactivate_shaker()
     heater_shaker.deactivate_heater()
     heater_shaker.open_labware_latch()
