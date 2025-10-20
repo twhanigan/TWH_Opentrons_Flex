@@ -119,7 +119,7 @@ def run(protocol: protocol_api.ProtocolContext):
     # Steps 1: Add lysis buffer to column 1 of plate1. 
     p1000_multi.distribute(50, 
          reservoir['A7'],
-         plate1['A1'],
+         plate1[f'A{protocol.params.standards_col}'],
          rate = speed,
          delay = 2,
          new_tip='once')
@@ -239,7 +239,7 @@ def run(protocol: protocol_api.ProtocolContext):
     protocol.move_labware(labware=plate2, new_location=hs_adapter,use_gripper=True)
     heater_shaker.close_labware_latch()
     heater_shaker.set_and_wait_for_shake_speed(500)
-    protocol.delay(minutes=15)
+    protocol.delay(minutes=20)
 
     #Step 17 deactivate heater shaker and temp modules
     heater_shaker.deactivate_shaker()
