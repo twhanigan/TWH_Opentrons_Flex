@@ -87,7 +87,7 @@ def run(protocol: protocol_api.ProtocolContext):
     chute = protocol.load_waste_chute()
 
     # Load adapters
-    temp_adapter = temp_module.load_labware('opentrons_24_aluminumblock_nest_1.5ml_snapcap')
+    temp_adapter = temp_module.load_labware('opentrons_24_aluminumblock_nest_1.5ml_screwcap')
 
     #set the temp module to 0c
     temp_module.set_temperature(celsius=10)
@@ -122,7 +122,6 @@ def run(protocol: protocol_api.ProtocolContext):
     temp_adapter['A3'].load_liquid(liquid=dNTPs, volume=1500) #click
     temp_adapter['A4'].load_liquid(liquid=OXA1L_F_Primer, volume=1500) #click
     temp_adapter['A5'].load_liquid(liquid=OXA1L_R_Primer, volume=1500) #click
-    #temp_adapter['A6'].load_liquid(liquid=DMSO, volume=1500) #click
     temp_adapter['A6'].load_liquid(liquid=Phusion, volume=1500) #click
     temp_adapter['B1'].load_liquid(liquid=empty_epp, volume=1000) 
     temp_adapter['B2'].load_liquid(liquid=positive_control, volume=1000)  # Additional lysis buffer for SP3
@@ -182,11 +181,11 @@ def run(protocol: protocol_api.ProtocolContext):
     used_wells = set()
     sample_well_map = {}
 
-    # allocate wells for positive control
-    sample_well_map["positive_control"] = get_next_wells(0, 1, used_wells)
-
     # allocate wells for negative control
-    sample_well_map["neg_control"] = get_next_wells(1, 1, used_wells)
+    sample_well_map["neg_control"] = get_next_wells(0, 1, used_wells)
+
+    # allocate wells for positive control
+    sample_well_map["positive_control"] = get_next_wells(1, 1, used_wells)
 
     # allocate wells for each sample
     for sample_idx in range(protocol.params.num_samples):
@@ -201,23 +200,21 @@ def run(protocol: protocol_api.ProtocolContext):
     #    next_wells = get_next_wells(sample_idx + start_index, replicates, used_wells, row_offset=row_offset)
     #    sample_well_map[f"sample_{sample_idx+1}"] = next_wells
 
-
     thermocycler.set_block_temperature(4)
-    #Add the positive control and no template control to the number of samples
-    # Transfer positive control to A1
-    p50_multi.distribute(sample_vol,
-                         temp_adapter['B2'].bottom(z=0.1),
-                         [pcr_plate[well].bottom(z=0.1) for well in sample_well_map["positive_control"]],
-                         rate=0.5,
-                         mix_before=(1, 10))
-
+    
     # Transfer negative control to B1–B3
     p50_multi.distribute(sample_vol,
                          temp_adapter['B3'].bottom(z=0.1),
                          [pcr_plate[well].bottom(z=0.1) for well in sample_well_map["neg_control"]],
                          rate=0.5,
                          mix_before=(1, 10))
-    
+
+    # Transfer positive control to A1
+    p50_multi.distribute(sample_vol,
+                         temp_adapter['B2'].bottom(z=0.1),
+                         [pcr_plate[well].bottom(z=0.1) for well in sample_well_map["positive_control"]],
+                         rate=0.5,
+                         mix_before=(1, 10))
     # Transfer samples
     for sample_idx in range(protocol.params.num_samples):
         tube_loc = sample_locations[sample_idx]
@@ -280,7 +277,7 @@ def run(protocol: protocol_api.ProtocolContext):
                             source=temp_adapter['A6'].bottom(z=0.1), 
                             dest=temp_adapter['B1'], 
                             rate = speed-0.2,
-                            disposal_vol=0,
+                            disposal_vol=1,
                             delay = 2,
                             blow_out=True,  # required to set location
                             blowout_location='destination well',
@@ -299,7 +296,7 @@ def run(protocol: protocol_api.ProtocolContext):
         new_tip='once',
         mix_before=(1,protocol.params.reaction_vol*(protocol.params.num_samples/2)),
         disposal_vol=5,
-        rate=speed-.25,
+        rate=0.05,
         delay=3)
 
     # Close thermocycler lid and set temperature
