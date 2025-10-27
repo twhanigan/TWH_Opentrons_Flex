@@ -81,6 +81,7 @@ def run(protocol: protocol_api.ProtocolContext):
 
     #set the temp module to 0c
     temp_module.set_temperature(celsius=10)
+    thermocycler.open_lid()
     
     # Load labware
     partial_50 = protocol.load_labware(load_name="opentrons_flex_96_filtertiprack_50ul",location="B3")
@@ -158,7 +159,8 @@ def run(protocol: protocol_api.ProtocolContext):
                          mix_after=(3, 40),
                          new_tip='never', 
                          disposal_vol=0)
-    
+    p50_multi.drop_tip()
+
     # assign sample locations dynamically
     sample_locations = []
     for i in range(protocol.params.num_samples):
@@ -197,10 +199,10 @@ def run(protocol: protocol_api.ProtocolContext):
         #Transfer the samples onto plate 2
         p50_multi.distribute(5,
                         temp_adapter[tube],
-                        [plate2[i].bottom(z=0.3) for i in destination_wells],
+                        [plate2[i].bottom(z=0.1) for i in destination_wells],
                         rate = speed,
                         mix_before=(1, 10),
-                        disposal_vol=5)  # Distributing to three consecutive columns
+                        disposal_vol=2)  # Distributing to three consecutive columns
 
     #Step 9: Load the p50 with partial tip rack 
     p50_multi.configure_nozzle_layout(style=ALL, tip_racks=[partial_50]) #, 

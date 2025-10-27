@@ -103,19 +103,25 @@ def run(protocol: protocol_api.ProtocolContext):
     # Load PCR plate on thermocycler
     pcr_plate = thermocycler.load_labware('opentrons_96_wellplate_200ul_pcr_full_skirt')
     
-    # Liquid definitionss
-    OXA1L_F_Primer = protocol.define_liquid(name = 'OXA1L_F_Primer', display_color="#704848",)
-    OXA1L_R_Primer = protocol.define_liquid(name = 'OXA1L_R_Primer', display_color="#704300",)
-    HF_Buffer = protocol.define_liquid(name = 'HF_Buffer', display_color="#704900",)
-    Phusion = protocol.define_liquid(name = 'Phusion', display_color="#701100",)
-    ddH2O = protocol.define_liquid(name = 'ddH2O', display_color="#704900",)
-    DMSO = protocol.define_liquid(name = 'DMSO', display_color="#704300",)
-    dNTPs = protocol.define_liquid(name='dNTPs', display_color="#FFC0CB")  # Pink
-    positive_control = protocol.define_liquid(name = 'positive_control', display_color="#FF3300")
-    neg_control = protocol.define_liquid(name = 'neg_control', display_color="#FF5E00")
-    empty_epp = protocol.define_liquid(name = 'empty_eppendorf', display_color="#000011")
-    sample_tubes = [protocol.define_liquid(name = f'Sample {i + 1}', display_color="#FFA000",) for i in range(protocol.params.num_samples)]
-    loading_buff = protocol.define_liquid(name = 'loading_buff', display_color="#220011")
+    # Liquid definitions
+    OXA1L_F_Primer = protocol.define_liquid(name='OXA1L_F_Primer', display_color="#FF4B4B")   # Bright Red
+    OXA1L_R_Primer = protocol.define_liquid(name='OXA1L_R_Primer', display_color="#FF8C00")   # Bright Orange
+    HF_Buffer = protocol.define_liquid(name='HF_Buffer', display_color="#FFD700")             # Bright Yellow
+    Phusion = protocol.define_liquid(name='Phusion', display_color="#32CD32")                 # Lime Green
+    ddH2O = protocol.define_liquid(name='ddH2O', display_color="#1E90FF")                     # Bright Blue
+    DMSO = protocol.define_liquid(name='DMSO', display_color="#8A2BE2")                       # Bright Purple
+    dNTPs = protocol.define_liquid(name='dNTPs', display_color="#FF69B4")                     # Hot Pink
+    positive_control = protocol.define_liquid(name='positive_control', display_color="#FF0000") # Vivid Red
+    neg_control = protocol.define_liquid(name='neg_control', display_color="#00CED1")         # Bright Cyan
+    empty_epp = protocol.define_liquid(name='empty_eppendorf', display_color="#808080")       # Medium Gray
+    sample_tubes = [
+        protocol.define_liquid(
+            name=f'Sample {i + 1}', 
+            display_color="#FF1493" if i % 2 == 0 else "#00FF7F"   # Alternating Bright Pink / Spring Green
+        ) 
+        for i in range(protocol.params.num_samples)
+    ]
+    loading_buff = protocol.define_liquid(name='loading_buff', display_color="#9400D3")       # Deep Violet
 
     temp_adapter['A1'].load_liquid(liquid=ddH2O, volume=1500) #click
     temp_adapter['A2'].load_liquid(liquid=HF_Buffer, volume=1500) #click
@@ -309,7 +315,7 @@ def run(protocol: protocol_api.ProtocolContext):
     # 7. Run PCR cycles
     # Initial denaturation
     thermocycler.execute_profile(
-        steps=[{'temperature': 98, 'hold_time_seconds': 30}],
+        steps=[{'temperature': 98, 'hold_time_seconds': 60}],
         repetitions=1,
         block_max_volume=50
     )
@@ -334,7 +340,7 @@ def run(protocol: protocol_api.ProtocolContext):
     
     # Hold at 4°C
     thermocycler.deactivate_lid()
-    thermocycler.set_block_temperature(4)
+    thermocycler.set_block_temperature(10)
     
     # Step 4: Gel preparation and loading (manual step for now)
     protocol.comment("After PCR, analyze products on a 0.75% agarose gel stained with ethidium bromide")
