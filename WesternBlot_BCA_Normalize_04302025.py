@@ -10,7 +10,7 @@ import time
 import re
 
 metadata = {
-    'protocolName': 'BCA Assay with Normalization for Western Blotting',
+    'protocolName': 'BCA Assay for Western blotting',
     'author': 'Assistant',
     'description': 'BCA and normalization for western blotting'
 }
@@ -129,6 +129,7 @@ def run(protocol: protocol_api.ProtocolContext):
          reservoir['A7'],
          plate1[f'A{protocol.params.standards_col}'].bottom(z=0.1),
          rate = 0.35,
+         mix_before = (1,50),
          delay = 2,
          new_tip='once')
 
@@ -200,14 +201,14 @@ def run(protocol: protocol_api.ProtocolContext):
                         [plate2[i].bottom(z=0.1) for i in destination_wells],
                         rate = speed,
                         mix_before=(1, 10),
-                        disposal_vol=5)  # Distributing to three consecutive columns
+                        disposal_vol=2)  # Distributing to three consecutive columns
 
     #Step 9: Load the p50 with full tip rack
     p50_multi.configure_nozzle_layout(style=ALL, tip_racks=[partial_50]) #, 
 
     #Step 10: Pipette triplicate of controls from plate1 column 1 to plate2 columns 1,2,3 
     p50_multi.distribute(5, 
-                        plate1['A1'], 
+                        plate1[f'A{protocol.params.standards_col}'], 
                         [plate2[f'A{i}'].bottom(z=0.1) for i in range(1, 4)],
                         rate= speed,
                         mix_before=(1, 10),
