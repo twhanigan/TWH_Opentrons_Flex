@@ -74,7 +74,7 @@ def run(protocol: protocol_api.ProtocolContext):
     chute = protocol.load_waste_chute()
 
     # Load adapters
-    temp_adapter = temp_module.load_labware('opentrons_24_aluminumblock_nest_1.5ml_screwcap')
+    temp_adapter = temp_module.load_labware('opentrons_24_aluminumblock_nest_1.5ml_snapcap')
 
     #set the heater_shaker temp to 60C
     heater_shaker.open_labware_latch()
@@ -247,7 +247,7 @@ def run(protocol: protocol_api.ProtocolContext):
     heater_shaker.set_and_wait_for_temperature(50)
     heater_shaker.close_labware_latch()
     heater_shaker.set_and_wait_for_shake_speed(500)
-    protocol.delay(minutes=20)
+    protocol.delay(minutes=10)
 
     #Step 17 deactivate heater shaker and temp modules
     heater_shaker.deactivate_shaker()
@@ -264,7 +264,7 @@ def run(protocol: protocol_api.ProtocolContext):
     protocol.pause()
 
     # Tell the robot that new labware will be placed onto the deck
-    protocol.move_labware(labware=plate3, new_location="B2", use_gripper=True)
+    #protocol.move_labware(labware=plate3, new_location="B2", use_gripper=True)
     protocol.move_labware(labware=partial_50, new_location='B4', use_gripper=True)
 
     #Configure the p1000 pipette to use single tip NOTE: this resets the pipettes tip racks!

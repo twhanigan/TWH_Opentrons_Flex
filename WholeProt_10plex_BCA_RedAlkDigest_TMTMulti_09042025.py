@@ -241,7 +241,7 @@ def run(protocol: protocol_api.ProtocolContext):
                         [plate2[i].bottom(z=0.1) for i in destination_wells],
                         rate = speed,
                         mix_before=(1, 10),
-                        disposal_vol=5)  # Distributing to three consecutive columns
+                        disposal_vol=2)  # Distributing to three consecutive columns
 
     #Step 9: Load the p50 with full tip rack
     p50_multi.configure_nozzle_layout(style=ALL, tip_racks=[tips_50]) #, 
@@ -285,10 +285,10 @@ def run(protocol: protocol_api.ProtocolContext):
     #Step 16: move plate 2 to the heater shaker and incubate at 37c
     heater_shaker.open_labware_latch()
     protocol.move_labware(labware=plate2, new_location=heater_shaker,use_gripper=True)
-    heater_shaker.set_and_wait_for_temperature(37)
+    heater_shaker.set_and_wait_for_temperature(50)
     heater_shaker.close_labware_latch()
     heater_shaker.set_and_wait_for_shake_speed(500)
-    protocol.delay(minutes=20)
+    protocol.delay(minutes=10)
 
     #Step 17 deactivate heater shaker and temp modules
     heater_shaker.deactivate_shaker()
