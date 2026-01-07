@@ -140,10 +140,10 @@ def run(protocol: protocol_api.ProtocolContext):
     sample_well_map = {}
 
     # allocate wells for positive control
-    sample_well_map["positive_control"] = get_next_wells(0, protocol.params.num_replicates, used_wells)
+    sample_well_map["neg_control"] = get_next_wells(0, protocol.params.num_replicates, used_wells)
 
     # allocate wells for negative control
-    sample_well_map["neg_control"] = get_next_wells(1, protocol.params.num_replicates, used_wells)
+    sample_well_map["positive_control"] = get_next_wells(1, protocol.params.num_replicates, used_wells)
 
     # allocate wells for each sample
     for sample_idx in range(protocol.params.num_samples):

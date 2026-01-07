@@ -29,7 +29,7 @@ def add_parameters(parameters):
         maximum=24
     )
 
-        parameters.add_int(
+    parameters.add_int(
         variable_name="standards_col",
         display_name="standards column",
         description="Integer of column on plate1 where standards will be diluted",
@@ -79,7 +79,7 @@ def run(protocol: protocol_api.ProtocolContext):
 
     # Load adapters
     hs_adapter = heater_shaker.load_adapter('opentrons_universal_flat_adapter')
-    temp_adapter = temp_module.load_labware('opentrons_24_aluminumblock_nest_1.5ml_screwcap')
+    temp_adapter = temp_module.load_labware('opentrons_24_aluminumblock_nest_1.5ml_snapcap')
 
     #set the heater_shaker temp to 60C
     heater_shaker.set_and_wait_for_temperature(50)
@@ -125,7 +125,7 @@ def run(protocol: protocol_api.ProtocolContext):
          new_tip='once')
 
     # Step 2: move the 200uL partial tips to D4 and then the 50 uL partial tips to B3
-    protocol.move_labware(labware=tips_200, new_location="D4", use_gripper=True)
+    #protocol.move_labware(labware=tips_200, new_location="D4", use_gripper=True)
 
     #Step 3: Configure the p50 pipette to use single tip NOTE: this resets the pipettes tip racks!
     p50_multi.configure_nozzle_layout(style=SINGLE, start="A1",tip_racks=[partial_50])
@@ -191,7 +191,7 @@ def run(protocol: protocol_api.ProtocolContext):
         #Transfer the samples onto plate 2
         p50_multi.distribute(5,
                             temp_adapter[tube],
-                            [plate2[i].bottom(z=0) for i in destination_wells],
+                            [plate2[i].bottom(z=0.1) for i in destination_wells],
                             rate = speed,
                             mix_before=(1, 10),
                             disposal_vol=5)  # Distributing to three consecutive columns
@@ -239,7 +239,7 @@ def run(protocol: protocol_api.ProtocolContext):
     protocol.move_labware(labware=plate2, new_location=hs_adapter,use_gripper=True)
     heater_shaker.close_labware_latch()
     heater_shaker.set_and_wait_for_shake_speed(500)
-    protocol.delay(minutes=20)
+    protocol.delay(minutes=15)
 
     #Step 17 deactivate heater shaker and temp modules
     heater_shaker.deactivate_shaker()
