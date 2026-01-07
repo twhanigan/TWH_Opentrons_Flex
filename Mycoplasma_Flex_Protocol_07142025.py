@@ -206,6 +206,7 @@ def run(protocol: protocol_api.ProtocolContext):
         [pcr_plate[well].bottom(z=5) for well in mastermix_wells],
         new_tip='once',
         disposal_vol=5,
+        touch_tip=True,
         rate=0.5
     )
 
