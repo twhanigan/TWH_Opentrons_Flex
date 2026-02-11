@@ -103,10 +103,15 @@ def run(protocol: protocol_api.ProtocolContext):
     excess_lysis = protocol.define_liquid(name='Excess Lysis Buffer', display_color="#FFC0CB")  # Pink
     loading_buffer = protocol.define_liquid(name = 'Loading Buffer', display_color="#4169E1",)
     sample_liquids = [protocol.define_liquid(name = f'Sample {i + 1}', display_color="#FFA000",) for i in range(protocol.params.num_samples)]
+    reduce_10X = protocol.define_liquid(name = 'Reducing Agent 10X', display_color="#4169E1",)
+    empty_epp = protocol.define_liquid(name = 'Reducing Agent 10X', display_color="#FFFFFF",)
+
 
     # BSA and loading buffer
     temp_adapter['A1'].load_liquid(liquid=bsa_standard, volume=1000)  # 20 mg/ml BSA standard
     temp_adapter['A2'].load_liquid(liquid=loading_buffer, volume=1000)  # Additional lysis buffer for SP3
+    temp_adapter['A3'].load_liquid(liquid=reduce_10X, volume=1000)  # Additional lysis buffer for SP3
+    temp_adapter['A4'].load_liquid(liquid=empty_epp, volume=1000)  # Additional lysis buffer for SP3
 
     # Reservoir assignments for washes and digestion
     reservoir['A1'].load_liquid(liquid=bsa_reag_a, volume=20000)  
@@ -252,17 +257,40 @@ def run(protocol: protocol_api.ProtocolContext):
     heater_shaker.open_labware_latch()
 
     protocol.move_labware(labware=plate1, new_location='D4', use_gripper=True)
-    protocol.move_labware(labware=plate2, new_location='A2',use_gripper=True)
+    protocol.move_labware(labware=plate2, new_location='A4',use_gripper=True)
     
     # ---------------- Normalizing BCA Assay ----------------
     protocol.comment("Place BCA assay absorbance data in /var/lib/jupyter/notebooks/Data")
 
     # Pause the protocol until the user loads the file to /var/lib/jupyter/notebooks
     protocol.pause()
+    
+
+    # Set P1000 to use single nozzle and mix reducing agent with loading buffer
+    protocol.move_labware(labware=tips_200, new_location="A2", use_gripper=True)
+    p1000_multi.configure_nozzle_layout(style=SINGLE, start="A1", tip_racks=[tips_200]) 
+
+    # Add loading buffer to empty eppendorf
+    p1000_multi.distribute((protocol.params.final_volume/3) * (protocol.params.num_samples + 3),
+                    temp_adapter['A2'],
+                    temp_adapter['A4'],
+                    rate=speed,
+                    mix_before=(1, 10),
+                    disposal_vol=5,
+                    new_tip='always')
 
     #Configure the p1000 and p50 pipettes to use single tip NOTE: this resets the pipettes tip racks!
     protocol.move_labware(labware=tips_1000, new_location="C4", use_gripper=True)
     p50_multi.configure_nozzle_layout(style=SINGLE, start="A1", tip_racks=[partial_50]) #, 
+
+    # Add Reducing agent to loading buffer
+    p50_multi.distribute(((protocol.params.final_volume/3) * (protocol.params.num_samples + 3))/9,
+                    temp_adapter['A3'],
+                    temp_adapter['A4'],
+                    rate=speed,
+                    mix_before=(1, 10),
+                    disposal_vol=1,
+                    new_tip='always')
 
      # Define the directory path
     directory = Path("/var/lib/jupyter/notebooks/Data/")
@@ -356,19 +384,21 @@ def run(protocol: protocol_api.ProtocolContext):
         normalized_volume = row['Sample Volume (µL)']
         diluent_volume = protocol.params.final_volume - normalized_volume
         destination_well = destination_wells[i]
-        p50_multi.transfer(normalized_volume, 
-                    temp_adapter[source_well], 
-                    plate3[destination_well], 
-                    rate=0.5, 
-                    new_tip='once')
         p50_multi.transfer(diluent_volume, 
                     reservoir['A7'], 
                     plate3[destination_well], 
                     rate=0.5, 
                     new_tip='once')
-    # Add loading buffer
+        p50_multi.transfer(normalized_volume, 
+                    temp_adapter[source_well], 
+                    plate3[destination_well], 
+                    rate=0.5,
+                    mix_after=(2, 10), 
+                    new_tip='once')
+
+    # Add loading buffer with reducing agent to samples
     p50_multi.distribute(protocol.params.final_volume/3,
-                    temp_adapter['A2'],
+                    temp_adapter['A4'],
                     [plate3[well] for well in destination_wells],
                     rate=speed,
                     mix_after=(3, 10),
@@ -379,7 +409,7 @@ def run(protocol: protocol_api.ProtocolContext):
     thermocycler.close_lid()
     thermocycler.set_lid_temperature(70)
     protocol.comment('Running thermocycler for 10 minutes')
-    thermocycler.set_block_temperature(70,block_max_volume=30, hold_time_minutes=10)
-    thermocycler.set_block_temperature(4)  # Hold at 4°C
+    thermocycler.set_block_temperature(70, block_max_volume=50, hold_time_minutes=10)
+    thermocycler.set_block_temperature(10)  # Hold at 4°C
     # Stop video recording after the main task is completed
     video_process.terminate()

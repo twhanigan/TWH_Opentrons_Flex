@@ -11,7 +11,7 @@ import time
 metadata = {
     'protocolName': 'TMT-labeled whole proteome sample preparation 09042025',
     'author': 'Assistant',
-    'description': 'I changed the tips in this one. BCA assay and sample protein normalization (<20 Samples), reduction/alkylation and SP3 sample cleanup, trypsin digestion and on bead TMT reaction.'
+    'description': 'BCA assay and sample protein normalization (<20 Samples), reduction/alkylation and SP3 sample cleanup, trypsin digestion and on bead TMT reaction.'
 }
 
 requirements = {

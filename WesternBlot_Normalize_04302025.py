@@ -88,8 +88,8 @@ def run(protocol: protocol_api.ProtocolContext):
     
     # Load labware
     partial_50 = protocol.load_labware(load_name="opentrons_flex_96_filtertiprack_50ul",location="B3")
-    tips_200 = protocol.load_labware(load_name="opentrons_flex_96_filtertiprack_200ul",location="A3")
-    tips_1000 = protocol.load_labware('opentrons_flex_96_filtertiprack_1000ul', 'C4')
+    tips_200 = protocol.load_labware(load_name="opentrons_flex_96_filtertiprack_200ul",location="A2")
+    #tips_1000 = protocol.load_labware('opentrons_flex_96_filtertiprack_1000ul', 'C4')
     #plate1 = protocol.load_labware('opentrons_96_wellplate_200ul_pcr_full_skirt', 'A2')
     #plate2 = protocol.load_labware('corning_96_wellplate_360ul_flat', 'B2')
     plate3 = thermocycler.load_labware('nest_96_wellplate_100ul_pcr_full_skirt')    
@@ -103,10 +103,14 @@ def run(protocol: protocol_api.ProtocolContext):
     excess_lysis = protocol.define_liquid(name='Excess Lysis Buffer', display_color="#FFC0CB")  # Pink
     loading_buffer = protocol.define_liquid(name = 'Loading Buffer', display_color="#4169E1",)
     sample_liquids = [protocol.define_liquid(name = f'Sample {i + 1}', display_color="#FFA000",) for i in range(protocol.params.num_samples)]
+    reduce_10X = protocol.define_liquid(name = 'Reducing Agent 10X', display_color="#4169E1",)
+    empty_epp = protocol.define_liquid(name = 'Reducing Agent 10X', display_color="#FFFFFF",)
 
     # BSA and loading buffer
     temp_adapter['A1'].load_liquid(liquid=bsa_standard, volume=1000)  # 20 mg/ml BSA standard
     temp_adapter['A2'].load_liquid(liquid=loading_buffer, volume=1000)  # Additional lysis buffer for SP3
+    temp_adapter['A3'].load_liquid(liquid=reduce_10X, volume=1000)  # Additional lysis buffer for SP3
+    temp_adapter['A4'].load_liquid(liquid=empty_epp, volume=1000)  # Additional lysis buffer for SP3
 
     # Reservoir assignments for washes and digestion
     reservoir['A1'].load_liquid(liquid=bsa_reag_a, volume=20000)  
@@ -150,8 +154,29 @@ def run(protocol: protocol_api.ProtocolContext):
     # ---------------- Normalizing BCA Assay ----------------
     protocol.comment("Place BCA assay absorbance data in /var/lib/jupyter/notebooks/TWH, load new deep well plate into flex B2 (where BCA plate was), and new tube rack into A2 (with excess lysis buffer in A1 and empty falcon in A2)")
 
+    # Set P1000 to use single nozzle and mix reducing agent with loading buffer
+    p1000_multi.configure_nozzle_layout(style=SINGLE, start="A1", tip_racks=[tips_200]) 
+
+    # Add loading buffer to empty eppendorf
+    p1000_multi.distribute((protocol.params.final_volume/3) * (protocol.params.num_samples + 3),
+                    temp_adapter['A2'],
+                    temp_adapter['A4'],
+                    rate=speed,
+                    mix_before=(1, 10),
+                    disposal_vol=5,
+                    new_tip='always')
+
     #Configure the p1000 and p50 pipettes to use single tip NOTE: this resets the pipettes tip racks!
     p50_multi.configure_nozzle_layout(style=SINGLE, start="A1", tip_racks=[partial_50]) #, 
+
+    # Add Reducing agent to loading buffer
+    p50_multi.distribute(((protocol.params.final_volume/3) * (protocol.params.num_samples + 3))/9,
+                    temp_adapter['A3'],
+                    temp_adapter['A4'],
+                    rate=speed,
+                    mix_before=(1, 10),
+                    disposal_vol=1,
+                    new_tip='always')
 
      # Define the directory path
     directory = Path("/var/lib/jupyter/notebooks/Data/")
@@ -255,9 +280,11 @@ def run(protocol: protocol_api.ProtocolContext):
                     plate3[destination_well], 
                     rate=0.5, 
                     new_tip='once')
+    
+
     # Add loading buffer
     p50_multi.distribute(protocol.params.final_volume/3,
-                    temp_adapter['A2'],
+                    temp_adapter['A4'],
                     [plate3[well] for well in destination_wells],
                     rate=speed,
                     mix_after=(3, 10),
@@ -268,7 +295,7 @@ def run(protocol: protocol_api.ProtocolContext):
     thermocycler.close_lid()
     thermocycler.set_lid_temperature(70)
     protocol.comment('Running thermocycler for 10 minutes')
-    thermocycler.set_block_temperature(70,block_max_volume=30, hold_time_minutes=10)
-    thermocycler.set_block_temperature(4)  # Hold at 4°C
+    thermocycler.set_block_temperature(70,block_max_volume=50, hold_time_minutes=10)
+    thermocycler.set_block_temperature(10)  # Hold at 4°C
     # Stop video recording after the main task is completed
     video_process.terminate()
