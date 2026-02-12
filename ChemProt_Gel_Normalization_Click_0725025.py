@@ -210,18 +210,17 @@ def run(protocol: protocol_api.ProtocolContext):
         normalized_volume = row['Sample Volume (µL)']
         diluent_volume = protocol.params.final_volume - normalized_volume
         destination_well = destination_wells[i]
-        p1000_multi.transfer(normalized_volume, 
-                            temp_adapter[source_well], 
-                            plate3[destination_well].bottom(z=0.1), 
-                            rate=0.5, 
-                            new_tip='once')
-
         p1000_multi.transfer(diluent_volume, 
                             reservoir['A7'], 
                             plate3[destination_well].bottom(z=0.1), 
                             rate=0.5, 
                             new_tip='once')
-
+        p1000_multi.transfer(normalized_volume, 
+                            temp_adapter[source_well], 
+                            plate3[destination_well].bottom(z=0.1), 
+                            rate=0.5, 
+                            new_tip='once')
+        
     # ---------------- Click Reaction ----------------
     protocol.comment("Running click reaction")
     protocol.move_labware(labware=partial_50, new_location='B3', use_gripper=True)
