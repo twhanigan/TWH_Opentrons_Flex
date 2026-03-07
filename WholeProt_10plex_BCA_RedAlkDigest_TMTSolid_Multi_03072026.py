@@ -130,6 +130,7 @@ def run(protocol: protocol_api.ProtocolContext):
     ethanol_80 = protocol.define_liquid(name='80% Ethanol', display_color="#4682B4")  # SteelBlue
     trypsin = protocol.define_liquid(name='Trypsin in EPPS', display_color="#9900FF")  # Gold
     cacl2 = protocol.define_liquid(name='CaCl2', display_color="#FF3300")  # LimeGreen
+    ACN = protocol.define_liquid(name='ACN', display_color="#FF3300")  # LimeGreen
     hydroxylamine = protocol.define_liquid(name='hydroxylamine', display_color="#8A2BE2")   # Blue Violet
     sample_liquids = [protocol.define_liquid(name = f'Sample {i + 1}', display_color="#FFA000",) for i in range(protocol.params.num_samples)]
 
@@ -150,6 +151,7 @@ def run(protocol: protocol_api.ProtocolContext):
     temp_adapter['A4'].load_liquid(liquid=K2CO3, volume=1000)  # reduce
     temp_adapter['A5'].load_liquid(liquid=IAA, volume=1000)  # alkylate
     temp_adapter['A6'].load_liquid(liquid=empty_2mL, volume=0)  # empty tube to combine TCEP/K2CO3
+    temp_adapter['D3'].load_liquid(liquid=ACN, volume=1000) # ACN for TMT
     temp_adapter['D4'].load_liquid(liquid=hydroxylamine, volume=200) # Quench TMT reaction
     temp_adapter['D5'].load_liquid(liquid=cacl2, volume=500)  # CaCl2 for digestion
     temp_adapter['D6'].load_liquid(liquid=trypsin, volume=2000)  # Trypsin in EPPS for digestion
@@ -704,7 +706,6 @@ def run(protocol: protocol_api.ProtocolContext):
     protocol.move_labware(labware=tips_200, new_location="B4", use_gripper=True)
     protocol.move_labware(labware=tips_1000, new_location="C4", use_gripper=True)
     protocol.move_labware(labware=plate3, new_location='B2', use_gripper=True)
-
     p50_multi.configure_nozzle_layout(style=ALL, tip_racks=[tips_50])
 
     for c in range(src_cols_count):  # includes the final partial column
@@ -723,7 +724,20 @@ def run(protocol: protocol_api.ProtocolContext):
     p50_multi.configure_nozzle_layout(style=SINGLE, start="A1", tip_racks=[tips_50])
     tmt_dilution_wells = [plate4.wells_by_name()[f"{rows[i % 8]}{(i // 8) + 1}"] for i in range(protocol.params.num_samples)]
     tmt_sources = [tmt_plate.wells_by_name()[f"{protocol.params.tmt_row}{c}"] for c in range(1, protocol.params.num_samples + 1)]
+    
+    #Add ACN prior to TMT tags
+    for dest in tmt_dilution_wells:
+        p50_multi.transfer(
+            5,
+            temp_adapter['D4'],
+            dest.bottom(z=0.1),
+            disposal_vol=0,
+            rate=0.2,
+            new_tip='always',
+            mix_after=(3, 10)
+        )
 
+    #Add TMT tags
     for source, dest in zip(tmt_sources, tmt_dilution_wells):
         p50_multi.transfer(
             5,

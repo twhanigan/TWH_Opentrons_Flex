@@ -494,24 +494,7 @@ def run(protocol: protocol_api.ProtocolContext):
     heater_shaker.open_labware_latch()
     thermocycler.open_lid()
     protocol.move_labware(labware=plate3, new_location=thermocycler, use_gripper=True)
-
-    # Add the loading buffer and move to the thermocylcer to seal and store.
-    loading_buffer_volume = round((protocol.params.final_volume) / 3, 1)
-    columns = sorted(set(well[1:] for well in destination_wells), key=int)
-    column_targets = [f'A{col}' for col in columns]
-    p50_multi.configure_nozzle_layout(style=ALL, tip_racks=[partial_50])
-    p50_multi.transfer(loading_buffer_volume, 
-                            reservoir['A9'], 
-                            [plate3[well] for well in column_targets],
-                            disposal_vol=0,
-                            rate=speed-0.1,
-                            delay=2,
-                            mix_before=(1,30), 
-                            mix_after=(3, 40), 
-                            new_tip='always')
     thermocycler.close_lid()
-    thermocycler.set_block_temperature(95)
-    protocol.delay(minutes=5)
     thermocycler.set_block_temperature(4)  # Hold at 4°C
     # Stop video recording after the main task is completed
     video_process.terminate()

@@ -104,7 +104,7 @@ def run(protocol: protocol_api.ProtocolContext):
     loading_buffer = protocol.define_liquid(name = 'Loading Buffer', display_color="#4169E1",)
     sample_liquids = [protocol.define_liquid(name = f'Sample {i + 1}', display_color="#FFA000",) for i in range(protocol.params.num_samples)]
     reduce_10X = protocol.define_liquid(name = 'Reducing Agent 10X', display_color="#4169E1",)
-    empty_epp = protocol.define_liquid(name = 'Reducing Agent 10X', display_color="#FFFFFF",)
+    empty_epp = protocol.define_liquid(name = 'Empty EPP', display_color="#FFFFFF",)
 
     # BSA and loading buffer
     temp_adapter['A1'].load_liquid(liquid=bsa_standard, volume=1000)  # 20 mg/ml BSA standard
