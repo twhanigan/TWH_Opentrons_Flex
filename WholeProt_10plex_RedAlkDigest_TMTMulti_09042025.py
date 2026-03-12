@@ -118,11 +118,12 @@ def run(protocol: protocol_api.ProtocolContext):
     IAA =  protocol.define_liquid(name='IAA', display_color="#AA00FF")  # ?
     excess_lysis = protocol.define_liquid(name='Excess Lysis Buffer', display_color="#FF0099")  # Pink
     epps_urea = protocol.define_liquid(name='2M Urea in EPPS', display_color="#00FF99")  # SaddleBrown
-    epps = protocol.define_liquid(name='2M Urea in EPPS', display_color="#00FF99")  # SaddleBrown
+    epps = protocol.define_liquid(name='EPPS', display_color="#00FF99")  # SaddleBrown
     abs_ethanol = protocol.define_liquid(name='100% Ethanol', display_color="#4682B4")  # SteelBlue
     ethanol_80 = protocol.define_liquid(name='80% Ethanol', display_color="#4682B4")  # SteelBlue
     trypsin = protocol.define_liquid(name='Trypsin in EPPS', display_color="#9900FF")  # Gold
     cacl2 = protocol.define_liquid(name='CaCl2', display_color="#FF3300")  # LimeGreen
+    ACN = protocol.define_liquid(name='ACN', display_color="#FF3300")
     hydroxylamine = protocol.define_liquid(name='hydroxylamine', display_color="#8A2BE2")   # Blue Violet
     sample_liquids = [protocol.define_liquid(name = f'Sample {i + 1}', display_color="#FFA000",) for i in range(protocol.params.num_samples)]
 
@@ -143,6 +144,7 @@ def run(protocol: protocol_api.ProtocolContext):
     temp_adapter['A4'].load_liquid(liquid=K2CO3, volume=1000)  # reduce
     temp_adapter['A5'].load_liquid(liquid=IAA, volume=1000)  # alkylate
     temp_adapter['A6'].load_liquid(liquid=empty_2mL, volume=0)  # empty tube to combine TCEP/K2CO3
+    temp_adapter['D3'].load_liquid(liquid=ACN, volume=1000) # ACN for TMT
     temp_adapter['D4'].load_liquid(liquid=hydroxylamine, volume=200) # Quench TMT reaction
     temp_adapter['D5'].load_liquid(liquid=cacl2, volume=500)  # CaCl2 for digestion
     temp_adapter['D6'].load_liquid(liquid=trypsin, volume=2000)  # Trypsin in EPPS for digestion
@@ -155,15 +157,15 @@ def run(protocol: protocol_api.ProtocolContext):
     protocol.comment("Place BCA assay absorbance data in /var/lib/jupyter/notebooks/Data, load new deep well plate into hs_adapter, and new tube rack into A2 (with click mix, beads and TCEP/IAA)")
     # assign sample locations dynamically
     sample_locations = []
-    for i in range(protocol.params.num_samples):
-        if i < 6:  # B1 to B6
+    for i in range(num):
+        if i < 6:            # B1 to B6
             sample_locations.append(f'B{i + 1}')
-        elif i < 12:  # C1 to C6
+        elif i < 12:         # C1 to C6
             sample_locations.append(f'C{i - 5}')
-        elif i < 18:  # D1 to D6
+        elif i < 18:         # D1 to D6
             sample_locations.append(f'D{i - 11}')
-        else:
-            break  # Stop if we exceed the number of available rows/columns
+        else:                # E1 to E6 (i = 18..23)
+            sample_locations.append(f'E{i - 17}')
 
     # Predefined list of letters A-H
     row = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
@@ -291,7 +293,7 @@ def run(protocol: protocol_api.ProtocolContext):
             pipette.transfer(
                 diluent_volume,
                 reservoir['A4'],   # diluent
-                plate3[destination_well].bottom(z=1),
+                plate3[destination_well].bottom(z=0.1),
                 rate=speed,
                 new_tip='always',
                 mix_after=(3, 10)
