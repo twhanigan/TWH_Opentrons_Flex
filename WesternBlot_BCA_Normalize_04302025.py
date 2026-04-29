@@ -10,7 +10,7 @@ import time
 import re
 
 metadata = {
-    'protocolName': 'BCA Assay for Western blotting',
+    'protocolName': 'BCA Assay and normalization for Western blotting',
     'author': 'Assistant',
     'description': 'BCA and normalization for western blotting'
 }
@@ -56,6 +56,13 @@ def add_parameters(parameters):
         minimum=10,
         maximum=100,
         unit="µL"
+    )
+
+    parameters.add_bool(
+        variable_name="hold_at_10c",
+        display_name="Hold at 10°C after heating",
+        description="Hold at 10°C after incubation. If not, deactivate lid/block.",
+        default=True
     )
 
 def run(protocol: protocol_api.ProtocolContext):
@@ -251,8 +258,9 @@ def run(protocol: protocol_api.ProtocolContext):
     heater_shaker.set_and_wait_for_temperature(50)
     heater_shaker.close_labware_latch()
     heater_shaker.set_and_wait_for_shake_speed(500)
-    protocol.delay(minutes=15)
+    protocol.delay(minutes=1)
     heater_shaker.deactivate_shaker()
+    protocol.delay(minutes=14)
     heater_shaker.deactivate_heater()
     heater_shaker.open_labware_latch()
 
@@ -271,20 +279,29 @@ def run(protocol: protocol_api.ProtocolContext):
     p1000_multi.configure_nozzle_layout(style=SINGLE, start="A1", tip_racks=[tips_200]) 
 
     # Add loading buffer to empty eppendorf
-    p1000_multi.distribute((protocol.params.final_volume/3) * (protocol.params.num_samples + 3),
-                    temp_adapter['A2'],
-                    temp_adapter['A4'],
-                    rate=speed,
-                    mix_before=(1, 10),
-                    disposal_vol=5,
-                    new_tip='always')
+    #p1000_multi.transfer((protocol.params.final_volume/3) * (protocol.params.num_samples + 3),
+    #                temp_adapter['A2'],
+    #                temp_adapter['A4'],
+    #                rate=0.1,
+    #                mix_before=(1, 10),
+    #                disposal_vol=10,
+    #                new_tip='always')
+
+    # Add loading buffer to empty eppendorf
+    vol = (protocol.params.final_volume / 3) * (protocol.params.num_samples + 3)
+    p1000_multi.pick_up_tip()
+    p1000_multi.mix(1, 10, temp_adapter["A2"])      # equivalent to mix_before
+    p1000_multi.aspirate(vol, temp_adapter["A2"], rate=0.1)
+    protocol.delay(seconds=1)                       # pause with tip still in liquid
+    p1000_multi.dispense(vol, temp_adapter["A4"], rate=0.1)
+    p1000_multi.drop_tip()
 
     #Configure the p1000 and p50 pipettes to use single tip NOTE: this resets the pipettes tip racks!
     protocol.move_labware(labware=tips_1000, new_location="C4", use_gripper=True)
     p50_multi.configure_nozzle_layout(style=SINGLE, start="A1", tip_racks=[partial_50]) #, 
 
     # Add Reducing agent to loading buffer
-    p50_multi.distribute(((protocol.params.final_volume/3) * (protocol.params.num_samples + 3))/9,
+    p50_multi.transfer(((protocol.params.final_volume/3) * (protocol.params.num_samples + 3))/9,
                     temp_adapter['A3'],
                     temp_adapter['A4'],
                     rate=speed,
@@ -387,12 +404,13 @@ def run(protocol: protocol_api.ProtocolContext):
         p50_multi.transfer(diluent_volume, 
                     reservoir['A7'], 
                     plate3[destination_well], 
-                    rate=0.5, 
+                    rate=0.35, 
                     new_tip='once')
         p50_multi.transfer(normalized_volume, 
                     temp_adapter[source_well], 
                     plate3[destination_well], 
-                    rate=0.5,
+                    rate=0.35,
+                    mix_before=(2, 10),
                     mix_after=(2, 10), 
                     new_tip='once')
 
@@ -400,7 +418,7 @@ def run(protocol: protocol_api.ProtocolContext):
     p50_multi.distribute(protocol.params.final_volume/3,
                     temp_adapter['A4'],
                     [plate3[well] for well in destination_wells],
-                    rate=speed,
+                    rate=0.2,
                     mix_after=(3, 10),
                     disposal_vol=1,
                     new_tip='always')
@@ -409,7 +427,20 @@ def run(protocol: protocol_api.ProtocolContext):
     thermocycler.close_lid()
     thermocycler.set_lid_temperature(70)
     protocol.comment('Running thermocycler for 10 minutes')
-    thermocycler.set_block_temperature(70, block_max_volume=50, hold_time_minutes=10)
-    thermocycler.set_block_temperature(10)  # Hold at 4°C
+    thermocycler.set_block_temperature(
+        70,
+        block_max_volume=50,
+        hold_time_minutes=10
+    )
+
+    # Final step depends on user parameter
+    if protocol.params.hold_at_10c:
+        protocol.comment("Holding at 10°C")
+        thermocycler.set_block_temperature(10)
+    else:
+        protocol.comment("Deactivating thermocycler block and lid")
+        thermocycler.deactivate_block()
+        thermocycler.deactivate_lid()
+
     # Stop video recording after the main task is completed
     video_process.terminate()
